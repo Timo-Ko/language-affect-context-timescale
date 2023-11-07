@@ -47,3 +47,9 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# irgnore all files in the archive foler
+archive
+
+# ignore all files in the data/raw folder for privacy reasons
+data/raw/
