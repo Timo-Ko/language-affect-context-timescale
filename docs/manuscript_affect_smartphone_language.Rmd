@@ -1,0 +1,654 @@
+---
+title             : "Affect Experience in Language Patterns Logged with Smartphones Across Time and Communication Contexts"
+shorttitle        : "Affect in Smartphone Language"
+
+author: 
+  - name          : "Timo K. Koch"
+    affiliation   : "1", "2"
+    corresponding : yes    # Define only one corresponding author
+    address       : "Torstrasse 25, 9000 St. Gallen, Switzerland"
+    email         : "timo.koch@unisg.ch"
+    role:         # Contributorship roles (e.g., CRediT, https://casrai.org/credit/)
+      - Conceptualization
+      - Investigation
+      - Methodology
+      - Formal Analysis
+      - Visualization
+      - Writing - Original Draft Preparation
+      - Writing - Review & Editing
+  - name          : "Johannes C. Eichstaedt"
+    affiliation   : "3"
+    role:
+      - Methodology
+      - Writing - Review & Editing
+  - name          : "Florian Bemmann"
+    affiliation   : "4"
+    role:
+      - Data Curation
+      - Software
+  - name          : "Ramona Schoedel"
+    affiliation   : "2"
+    role:
+      - Data Curation
+  - name          : "Markus Bühner"
+    affiliation   : "2"
+    role:
+      - Resources
+  - name          : "Clemens Stachl"
+    affiliation   : "1"
+    role:
+      - Conceptualization
+      - Writing - Review & Editing
+      - Supervision
+
+affiliation:
+  - id            : "1"
+    institution   : "Institute of Behavioral Science and Technology, University of St. Gallen"
+  - id            : "2"
+    institution   : "Department of Psychology, Ludwig-Maximilan-Universiät München"
+  - id            : "3"
+    institution   : "Department of Psychology, Stanford University"
+  - id            : "4"
+    institution   : "Media Informatics Group, Ludwig-Maximilians-Universität München"
+
+
+
+authornote: |
+  Conflict of interest: none
+  Acknowledgements: We thank the Leibniz Institute for Psychology (ZPID) for their support with data collection and Petra Kralj Novak for providing us with the emoji sentiment data. This project was partially supported by a scholarship of the German Academic Scholarship Foundation awarded to the first author.
+
+abstract: |
+  Research suggests that digital traces of written language, such as social media posts, offer a unique window into our emotional lives. However, those studies rest on the critical assumption that people’s language use, for instance of emotion words (e.g., "happy" and "sad"), is a reflection of their subjective affect experience in a given moment. In this work, we test this assumption by investigating (in-sample) associations of self-reported affect experience collected using the experience sampling method and everyday language characteristics logged with smartphones. Moreover, we investigate if those language features allow for the (out-of-sample) prediction of between-person differences and within-person fluctuations in affect experience. In those analyses, we also distinguish between private (e.g., messaging on WhatsApp) and public communication contexts (e.g., posting on Facebook) as well different time aggregations (trait, weekly, daily, momentary). From a data set of more than 10 million typed words from `r nrow(affect_language)` participants, we extract features regarding typing dynamics, word use based on word dictionaries, and emoji and emoticon use. We identify distinct affect-linked language variations across communication contexts and time frames. Predictions from machine learning algorithms, however, are not significantly better than chance. Finally, we discuss implications for the assessment of subjective affect experience using occurrence-counts, such as word dictionaries, and opportunities leveraging smartphones to collect language data in the wild.
+  
+keywords          : "Affect, Emotion, Language, Mobile Sensing, Experience Sampling, Machine Learning"
+wordcount         : "5000"
+
+bibliography      : ["../../timo_zotero_library.bib"]
+
+floatsintext      : no
+figurelist        : no
+tablelist         : no
+footnotelist      : no
+linenumbers       : no
+mask              : no
+draft             : no
+
+documentclass     : "apa6"
+classoption       : "man"
+output            : papaja::apa6_pdf
+---
+
+```{r setup, include = FALSE}
+library("papaja")
+r_refs("r-references.bib")
+```
+
+```{r analysis-preferences, echo = FALSE}
+# Seed for random number generation
+set.seed(42)
+knitr::opts_chunk$set(cache.extra = knitr::rand_seed)
+
+affect_language <- readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/data/affect_language_features/affect_language.RData")
+
+```
+
+# Introduction
+
+<!-- Catchy first intro paragraph (not history!): Words can reveal how we feel (not on AI stuff) - relevance and link to study, short summary -->
+Prior research studies suggest that the words we use in textual language reveal how we feel [@vineNaturalEmotionVocabularies2020; @tovDetectingWellbeingComputerized2013]. As digital footprints in the form of text, such as on blog posts, social media posts, or instant messages, have become ubiquitous, new opportunities to investigate affect-linked language have emerged. In this manner, Facebook posts have been found to be predictive of emotions [@eichstaedtTrackingFluctuationsPsychological2020; @preotiuc-pietroModellingValenceArousal2016]. Moreover, researchers predicted affective disorders, for example depression, from digital text data, such as Facebook posts [@eichstaedtFacebookLanguagePredicts2018], tweets [@dechoudhurySocialMediaMeasurement2013], and text messages [@liuRelationshipTextMessage2021]. This research field and corresponding commercial tools leveraging artificial intelligence (AI), for example in mental health care, are grounded on the critical assumption that the language one uses (i.e., the words) reflects how they feel in a given moment. However, recent works question the associations of and predictions from word use and subjective affect experience [@kelleyMachineLearningLanguage2022; @krossDoesCountingEmotion2019; @sunLanguageWellbeingTracking2020]. Rather, language use could be linked to one's *expression* of affect, which has some overlaps with one's subjective affect *experience*, but is not necessarily congruent [@krossDoesCountingEmotion2019]. Moreover, language-based prediction models often do not generalize well to other communication contexts (e.g., from text messages to social media posts) due to each channel's specific linguistic peculiarities [@liuCrossPlatformDifferenceFacebook2022a]. The present work leverages a novel language logging approach using off-the-shelf smartphones to investigate language-linked between-person differences and within-person fluctuations in affect experience across different time frames and communication contexts.
+
+## Affective Text
+
+<!-- How affect manifests in written language (content) for stable traits and fluctuating states  + traditional descriptive studies -->
+For the investigation of linguistic associations of stable *trait* affect that is considered a personality characteristic, researchers would collect text data over a period of time, for example diary entries [@tovDetectingWellbeingComputerized2013] or text messages [@massachiSochiatristSignalsAffect2020], and correlate the use of linguistic features, such as specific word categories (e.g., positive emotion words), with self-reported scores from questionnaires. Alternatively, they would analyze language traces of affective disorders, for example depression, that are also assumed to be relatively stable in a given time window [@tackmanDepressionNegativeEmotionality2018; @eichstaedtFacebookLanguagePredicts2018]. 
+
+<!-- researching text-affect associations for states -->
+On the contrary, the investigation of the association of language use and fluctuating affective *states* (e.g., short-termed emotions and longer moods) is more challenging since researchers usually cannot ask people how they are feeling in the exact moment when they produce a piece of text. Therefore, many prior studies associated language use with tragic events that were expected to elicit strong emotions, like September 11 [@backEmotionalTimelineSeptember2010; @cohnLinguisticMarkersPsychological2004] or the death of George Floyd [@eichstaedtEmotionalMentalHealth2021]. Alternatively, researchers would hire raters to assign affective labels to collected text data, such as Facebook posts [@preotiuc-pietroModellingValenceArousal2016; @eichstaedtTrackingFluctuationsPsychological2020].
+
+<!-- Direct linguistic markers: The case of sentiment lexica -->
+These kind of language studies often rely on word dictionaries that either assign a numeric sentiment score to each single word, for example using the popular Valence Aware Dictionary for Sentiment Reasoning (VADER) dictionary [@huttoVADERParsimoniousRuleBased2014], or that count the frequency of words from a set of given word categories (e.g., positive emotion words). The most widespread psycholinguistic dictionary is the Linguistic Inquiry and Word Count (LIWC) [@pennebakerLinguisticInquiryWord2015]. LIWC has multiple emotional word categories that contain words which are assumed to be indicative of positive or negative affect: The *positive emotion* word category includes words like "happy" and "joy" while the *negative emotion* category is comprised of the sub-categories *anxiety* (e.g., "worried), *anger* (e.g., "angry"), and *sadness* (e.g., "tear"). 
+
+<!-- possible issues with this assumption -->
+The assumption that the use of words from specific emotion word categories reflects how one feels in a given moment represents the foundation of many prior research studies. Sun and colleagues provide a comprehensive overview of research findings on the associations of positive and negative emotion LIWC dictionaries with affect in past research [@sunLanguageWellbeingTracking2020]. However, recent studies question if emotion words truly reflect momentary subjective affect experience [@krossDoesCountingEmotion2019; @sunLanguageWellbeingTracking2020].
+
+<!-- Indirect linguistic markers: pronouns etc. -->
+Apart from emotion words that serve as *direct* linguistic markers (e.g., "I'm feeling *happy*") in the form of positive and negative emotion words, researchers have also found evidence for *indirect* linguistic markers of affect, such as *social processes* and the use of *function words* (e.g., first person singular). Beyond serving as a linguistic measure these indirect linguistic markers of affect can also create insights into the processes of affect experience. For example, socializing is known to improve positive affect compared to being alone [@lucasExplainingExtraversionPositive2008]. Therefore, writing about social processes (e.g., "I am meeting *friends*") might serve as an indirect marker of peoples' positive affect that is associated with spending time with others. In a similar fashion, the use of 1st person singular that could indicate a strong focus on oneself has been liked to negative affect and depression [@tackmanDepressionNegativeEmotionality2018]. 
+
+<!-- content: emoji and emoticons -->
+Modern digital communication is not only comprised of plain text, but often also features emoji and their predecessors, the emoticons. These can be used to emotionally enrich text [@riordanEmojisToolsEmotion2017a]. In order to assess the specific emotional meaning of emoji, prior research had used raters that would assess a given set of emoji regarding their affective valence and arousal [@kutsuzawaClassification74Facial2022; @kraljnovakSentimentEmojis2015; @krekhovInterpolatingHappinessUnderstanding2022]. For instance, the "![blowingkissemoji](/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/figures/emoji/face-blowing-a-kiss.png){width=12px height=12px}" emoji has been universally rated as expressing positive affect. However, it remains unclear if people employing this particular emoji are also always subjectively experiencing positive affect in the moment when using it. 
+
+<!-- form: typing dynamics -->
+Not only the textual content, such as the employed words and emoji, of digital text, but also the way how it had been created, analogue to the form of the voice in speech, can contain valuable affective information. These typing dynamics, even though not visible to the communication partner, can be logged though a device's (e.g., personal computer or smartphone) keyboard. The logged data can then be used to investigate affect-linked typing dynamics. In this manner, prior research suggests, for instance, that particularly typing speed is related to affective states [@ghoshEmotionDetectionTouch2019; @ghoshEvaluatingEffectivenessSmartphone2017].
+
+## Predicting Affect from Text
+
+<!-- cite some exemplary prediction studies, do not go too much into details since prediction is not the focus of the paper -->
+More recently, researchers have been employing machine learning algorithms that are able to handle large and multi-dimensional data coming from digital textual footprints to predict affect. Using this approach, scientists have, for example, predicted affective states from Facebook posts [@preotiuc-pietroModellingValenceArousal2016; @eichstaedtTrackingFluctuationsPsychological2020] and typing dynamics [@mandiEmotionDetectionSmartphone2022; @ghoshEvaluatingEffectivenessSmartphone2017]. In a similar fashion, studies found affective disorders to be predictable from social media text [@eichstaedtFacebookLanguagePredicts2018; @dechoudhurySocialMediaMeasurement2013], text messages [@liuRelationshipTextMessage2021], and even solely from typing dynamics [@mastorasTouchscreenTypingPattern2019; @bennettSmartphoneAccelerometerData2022; @bennettPredictingClinicallyRelevant2022; @caoDeepMoodModelingMobile2017].
+
+<!-- 1) (descriptive) challenge: Ambiguity in the prediction target for labelled data (ground truth!), "problems" with the critical assumption that peoples' language use reflects affect experience -->
+To make accurate inferences about one's affect experience from collected language data, particularly for fluctuating affect states, researchers face three major challenges. First, in order to predict an author’s affective state from text, one needs to assess the author’s affect in the exact moment of text production. Since scientists cannot not ask people what affect they had experienced in the moment they had written a piece of text in the past, for example a social media post, researchers usually use raters to assign emotion labels to existing text data [@krossDoesCountingEmotion2019]. As a consequence, those studies are concerned with the associations with and recognition of *affect expression* from text rather than *subjective affect experience*. This is due to the fundamental difference of affect expression and affect experience [@krossDoesCountingEmotion2019], meaning how people subjectively feels versus the cues they express, for example through their language use, and that are interpreted by others (see section \@ref(conceptualchallenge) for more details on the conceptual difference between affect experience and affect expression). In this manner, recent studies leveraging the experience sampling method (ESM) to assess in-situ self-reports question the association of emotional word use and subjective experienced affect. For instance, Kross and colleagues did not find any correlations of emotional word use in Facebook posts and self-reported subjective affect experience [@krossDoesCountingEmotion2019]. In the same manner, transcribed speech samples collected with the Electronically Activated Recorder (EAR) and experience-sampled self-reports of the subjective experience of happiness did not yield significant associations with emotional word use [@sunLanguageWellbeingTracking2020].
+
+<!-- 2) (descriptive) challenge: getting (sufficient) corresponding language data (predictor side) esp for fluctuating states -->
+A second challenge that scientists face when investigating affect-linked language is to collect sufficient textual data that corresponds with affect experience data (see section \@ref(empiricalchallenge)). Text that had been created in experimental settings is usually rather short and lacks ecologic validity. However, sufficient text data is needed for accurate predictions of psychological characteristics [@eichstaedtClosedOpenvocabularyApproaches2021]. However, in studies leveraging social media posts, there is only data available when people have posted online. Consequently, there are many gaps in the data stream when people have not posted. As a result, granular affect predictions from social media text are not feasible and only possible for larger time frames, for example weeks [@eichstaedtTrackingFluctuationsPsychological2020]. A continuous tracking (e.g., on the hourly level) of affect experience, however, requires more granular data that social media text data cannot provide for most users. More granular data would also allow researchers to not only investigate between-person differences in affect (i.e., is this person sad?), but also assess within-person fluctuations (i.e., does this person feel sadder than they usually do?) that can also be of high theoretical and practical relevance [@sunLanguageWellbeingTracking2020]. 
+
+<!-- 3) (descriptive) Challenge: Keeping the text production context in mind  -->
+Third, recent research suggests that each communication channel has its specific linguistic peculiarities that can have an influence on affect-linked language variations and the algorithmic recognition of affect from language traces [@jaidkaFacebookTwitterCrossplatform2018; @liuCrossPlatformDifferenceFacebook2022a]. Possibly, these language variations are partially caused by differences in emotional self-disclosure across communication channels [@bazarovaManagingImpressionsRelationships2013]. However, most prior research has been based on language from only one single communication channel, such as one social media platform, due to the challenges associated with gathering textual data from the same user across platforms (e.g., Twitter posts and WhatsApp messages).
+
+<!-- How smartphones can help overcome challenges 1), 2), and 3) -->
+Novel data collection methods leveraging off-the-shelf smartphones allow researchers to overcome the aforementioned challenges. First, using smartphone-based experience sampling, subjective affective states can be assessed in-situ when they are experienced using self-reports. Thereby, there is no need for data labeling. Second, since smartphones have become our main point of communication, they allow researchers to log the majority of text one produces on a given day. Third, smartphones offer a promising opportunity to passively log textual data across communication channels (public and private contexts) by directly logging what is typed on the smartphone's keyboard or by taking screenshots [@bemmannLanguageLoggerMobileKeyboard2020; @brinbergIdiosyncrasiesEverydayDigital2021]. 
+
+&nbsp; 
+
+<!-- Wrap-up, RQs, goal of the paper, present tense! -->
+Based on recent developments in smartphone-based language logging methods, this work investigates how affect experience is revealed through language patterns in different time frames and communication contexts. Specifically, we investigate (in-sample) associations of self-reported affect with language features logged with smartphones in everyday life and if these features allow for the (out-of-sample) prediction of between-person differences and within-person fluctuations in affect experience. Further, we analyze which language features are most strongly associated with affect experience. Thereby, we aim to advance affect recognition from language cues and inform psycholinguistic theory of affect.
+
+# Method
+
+## Data Set
+
+<!-- Data collection procedure: overall + surveys -->
+Data collection for this work was part of a large six-month panel study (from May until November 2020) based on the *PhoneStudy* research app at Ludwig-Maximilian-Universität München [@schoedelBasicProtocolSmartphone2020]. Data collection was approved by the responsible IRB board. The study comprised two two-week experience sampling phases (July 27, 2020, to August 9, 2020; September 21, 2020, to October 4, 2020) during which participants received two to four short questionnaires per day. Here, self-reported valence and arousal were assessed in two separate items on six-point Likert scales among other psychological properties as part of an experience sampling procedure. Further, trait affect had been assessed using the German version of the Positive and Negative Affect Schedule (PANAS) (*alpha*~PA~ = .92, *alpha*~NA~ = .89) at the beginning of the study period [@breyerDeutscheVersionPositive2016].
+
+<!-- Data collection procedure: keyboard logging -->
+To capture the text participants had typed on their phones, the PhoneStudy app also included a keyboard logging module that had been adapted from the *ResearchIME* research app [@bemmannLanguageLoggerMobileKeyboard2020]. Hereby, all typed words were categorized according to the German "SentiWS" sentiment dictionary [@remusSentiWSPubliclyAvailable2010] and the latest German version of the Linguistic Inquiry and Word Count [@meierLIWCAufDeutsch2019] directly on the device. Here, only the respective word categories had been logged and not raw text to protect participants' privacy. Additionally, emoji and emoticons were logged in the clear. Also, for each text input, the respective app, a time stamp, and the input prompt text (e.g., "What's on your mind?" on Facebook) were logged. 
+
+```{r affect data set, echo = FALSE}
+
+# load data
+affect_df_all <- readRDS("/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/data/affect/affect_df_all.RData") # overview of all affect scores
+
+```
+
+<!-- describe time aggregation windows (momentary, daily, weekly, trait) + language matching -->
+We aggregated logged text data over four different time frames that correspond to assessed self-reports: trait, weekly, daily, and momentary. Regarding trait affect, we aggregated all text produced during the study period and matched it with the assessed scores for positive and negative trait affect. For weekly affect, we aggregated valence and arousal scores over one week (Monday through Sunday) for participants who had filled out at least one experience sampling questionnaire per day for that given week and coupled them with all logged text that had been produced in that week. With regard to daily affect, we computed the median valence and arousal for those days where participants had filled out at least two experience sampling instances and paired them with all text produced on that particular day. For momentary affect, we aggregated all text typed in a three-hour time window around (90 minutes before and after) a single experience sampling instances as done in prior research [@sunLanguageWellbeingTracking2020]. Furthermore, for the same three-hour time window, we computed the fluctuation of assessed momentary affect in valence and arousal from one's (median) affect baseline (for participants with at least five experience sampling days) across all experience sampling instances. For example, if a participant had a valence baseline of "3" and reports a "6" in a particular moment, this fluctuation score of "+3" indicated that this person had been a lot more happy than usual. The baseline score for valence showed a correlation of `r round(cor(affect_df_all$pa_panas, affect_df_all$md_valence, use = "pairwise.complete.obs"),2)` with positive trait affect and `r round(cor(affect_df_all$na_panas, affect_df_all$md_valence, use = "pairwise.complete.obs"),2)` with negative trait affect.
+
+<!-- describe how we distinguished different communication contexts -->
+To distinguish affect-linked language variations across communication channels, we used the logged information on the app that had been used to produce the respective text (e.g., Facebook, Instagram, or WhatsApp) and the input prompt text (e.g., "What's on your mind?" on Facebook). Here, we manually categorized all input prompts across all logged apps to determine the context in which the respective text had been written. For example, if a participant had produced text in the Facebook app and the logged input prompt text was "What's on your mind?", the composed text would be assigned to public communication. On the contrary, if she had used the search bar (i.e., the prompt was "Search Facebook") the produced text would neither count as private nor public communication. Thereby, we were able to generally detect and differentiate between private and public communication on a granular level. We conducted the public versus private communication analyses for trait affect (i.e., all text produced during the entire study period) because a sufficient number of participants had created enough text data to be statistically analyzed.
+
+<!-- describe word thresholds -->
+In our language analyses regarding trait affect (all text and private versus public communication) and weekly affect experience, we included participants who had written more than 500 words in the respective time frame. This threshold had been also applied in similar previous work on text messages [@liuRelationshipTextMessage2021]. For daily and momentary affect, we used a threshold of 100 words as used in related prior research [@vineNaturalEmotionVocabularies2020].
+
+<!-- describe final data set -->
+
+```{r data set, echo = FALSE}
+
+# load data
+
+files <- list.files(path = "/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/data/user_df/",)
+
+affect_language <- readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/data/affect_language_features/affect_language_500.RData")
+affect_language_private <- readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/data/affect_language_features/affect_language_private_500.RData")
+affect_language_public <- readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/data/affect_language_features/affect_language_public_500.RData")
+
+affect_language_es_week <- readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/data/affect_language_features/affect_language_es_week_500.RData")
+affect_language_es_day <- readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/data/affect_language_features/affect_language_es_day_100.RData")
+affect_language_es_threehrs <- readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/data/affect_language_features/affect_language_es_threehrs_100.RData")
+
+
+```
+
+`r length(files)` participants produced any text in the entire study period. `r nrow(affect_language)` of those had filled out the PANAS questionnaire and wrote at least 500 words of text on their smartphone keyboards. Of those, `r nrow(affect_language_private)` met the minimum word threshold of 500 words in private communication and `r nrow(affect_language_public)` in public communication contexts. Thus, they were included in the analyses with regard to trait affect. For weekly affect, we included `r length(unique(affect_language_es_week$user_id))` participants, who had filled out one experience sampling questionnaire each day in a given week (Monday through Sunday) and wrote more than 500 words of text on their smartphones. With regard to daily affect, `r length(unique(affect_language_es_day$user_id))` participants had completed at least two experience sampling assessments and 100 words of written text for a given day. Finally, we had `r nrow(affect_language_es_threehrs)` experience sampling instances with at least 100 words of corresponding text from `r length(unique(affect_language_es_threehrs$user_id))` participants. 
+Overall, participants' self-reported positive trait affect was balanced (*M* = `r round(mean(affect_language$pa_panas),2)`, *SD* = `r round(sd(affect_language$pa_panas),2)`) and negative trait affect (*M* = `r round(mean(affect_language$na_panas),2)`, *SD* = `r round(sd(affect_language$na_panas),2)`) was low. Moreover, self-reported momentary valence was positive (*M* = `r round(mean(affect_language_es_threehrs$valence),2)`, *SD* = `r round(sd(affect_language_es_threehrs$valence),2)`) and overall arousal was slightly geared towards activity (*M* = `r round(mean(affect_language_es_threehrs$arousal),2)`, *SD* = `r round(sd(affect_language_es_threehrs$arousal),2)`). 
+Table \@ref(tab:datasetstable) provides an overview of descriptive statistics of the final samples across communication contexts and different time windows. The distribution of affect measures is shown in Figure \@ref(fig:affectdistribution) in the chapter's appendix in section \@ref(appendixstudy2). 
+
+\newpage
+
+```{r datasetstable, echo = FALSE, warning = FALSE, message=FALSE}
+
+require(dplyr)
+require(kableExtra)
+
+options(knitr.kable.NA = '') # knitr settings
+
+# load data
+affect_language <- readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/data/affect_language_features/affect_language_500.RData")
+affect_language_private <- readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/data/affect_language_features/affect_language_private_500.RData")
+affect_language_public <- readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/data/affect_language_features/affect_language_public_500.RData")
+
+affect_language_es_week <- readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/data/affect_language_features/affect_language_es_week_500.RData")
+affect_language_es_day <- readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/data/affect_language_features/affect_language_es_day_100.RData")
+affect_language_es_threehrs <- readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/data/affect_language_features/affect_language_es_threehrs_100.RData")
+
+# create table
+keyboard_datasets <- data.frame(
+  
+  time_frame = c("Trait", "Trait", "Trait", "Week", "Day", "Moment" ),
+  
+  comm_context = c("All", "Private", "Public", "All", "All", "All" ),
+  
+  n_instances = c(nrow(affect_language), 
+                  nrow(affect_language_private), 
+                  nrow(affect_language_public), 
+                  nrow(affect_language_es_week), 
+                  nrow(affect_language_es_day), 
+                  nrow(affect_language_es_threehrs)),
+  
+  n_user = c(nrow(affect_language),
+             nrow(affect_language_private), 
+             nrow(affect_language_public), 
+             length(unique(affect_language_es_week$user_id)),
+             length(unique(affect_language_es_day$user_id)),
+             length(unique(affect_language_es_threehrs$user_id))),
+  
+  mean_age = c(mean(affect_language$Demo_A1, na.rm = T), 
+               mean(affect_language_private$Demo_A1, na.rm = T),
+               mean(affect_language_public$Demo_A1, na.rm = T),
+               mean(affect_language_es_week$Demo_A1, na.rm = T),
+               mean(affect_language_es_day$Demo_A1, na.rm = T),
+               mean(affect_language_es_threehrs$Demo_A1, na.rm = T)),
+  
+  share_women = c((mean(affect_language$Demo_GE1, na.rm = T) -1)*100,
+                  (mean(affect_language_private$Demo_GE1, na.rm = T) -1)*100,
+                  (mean(affect_language_public$Demo_GE1, na.rm = T) -1)*100,
+                  (mean(affect_language_es_week$Demo_GE1, na.rm = T) -1)*100,
+                  (mean(affect_language_es_day$Demo_GE1, na.rm = T) -1)*100,
+                  (mean(affect_language_es_threehrs$Demo_GE1, na.rm = T)-1)*100), 
+  
+  mean_pa = c(mean(affect_language$pa_panas), 
+              mean(affect_language_private$pa_panas), 
+              mean(affect_language_public$pa_panas), 
+              NA, NA, NA),
+  
+  mean_na = c(mean(affect_language$na_panas), 
+              mean(affect_language_private$na_panas),
+              mean(affect_language_public$na_panas), 
+              NA, NA, NA),
+  
+  mean_valence = c(NA, NA, NA,
+                   mean(affect_language_es_week$valence_week),
+                   mean(affect_language_es_day$valence_day),
+                   mean(affect_language_es_threehrs$valence)),
+  
+  mean_arousal = c(NA, NA, NA, 
+                   mean(affect_language_es_week$arousal_week),
+                   mean(affect_language_es_day$arousal_day),
+                   mean(affect_language_es_threehrs$arousal)),
+  
+  mean_sessions = c(mean(affect_language$typing_sessions_count), 
+                      mean(affect_language_private$typing_sessions_count),
+                      mean(affect_language_public$typing_sessions_count),
+                      mean(affect_language_es_week$typing_sessions_count),
+                      mean(affect_language_es_day$typing_sessions_count),
+                      mean(affect_language_es_threehrs$typing_sessions_count)),
+  
+  mean_words = c(mean(affect_language$amount_words_typed_total),
+                   mean(affect_language_private$amount_words_typed_total),
+                   mean(affect_language_public$amount_words_typed_total),
+                   mean(affect_language_es_week$amount_words_typed_total),
+                   mean(affect_language_es_day$amount_words_typed_total),
+                   mean(affect_language_es_threehrs$amount_words_typed_total))
+  )
+
+keyboard_datasets[,c(3:ncol(keyboard_datasets))] <- round(keyboard_datasets[,c(3:ncol(keyboard_datasets))], 2) # round numeric columns
+
+keyboard_datasets <- as.data.frame(t(keyboard_datasets))
+base::colnames(keyboard_datasets) <- NULL
+base::rownames(keyboard_datasets) <- c("Time frame", "Communication context", "*N*~instances~", "*N*~participants~", "*M*(age)", "%women", "*M*(Positive affect)", "*M*(Negative affect)", "*M*(Valence)", "*M*(Arousal)", "*M*(Typing sessions)", "*M*(Words)")
+
+knitr::kable(keyboard_datasets,
+             format="markdown",
+      booktabs = TRUE,
+      caption = 'Overview of data (sub) sets used in study 2')
+
+```
+
+## Keyboard Language Analyses
+
+<!-- intro into three feature groups -->
+Users reveal affective information in language typed on smartphones through the words they use, emoji and emoticon use, and typing dynamics. Therefore, we extracted three groups of features to comprehensively characterize participants' language logs regarding language content and form. First, we used word dictionaries (LIWC and the German SentiWS sentiment lexicon) to categorize written words directly on the device. Second, we logged participants' use of emoji and emoticons and computed respective metrics. Third, we analyzed their writing form by extracting features regarding participants' typing dynamics. In this section, features from each feature grouped are described in detail. As mentioned in the previous section, we aggregated language features across four different time frames: trait, weekly, daily, momentary. For each time frame, we aggregated all text that had been produced during all *typing sessions* (i.e., when the smartphone keyboard was opened, and text had been produced) and computed the respective features. For example, for daily affect experience, all text from a given participant for that day was aggregated and the daily sentiment score was computed. For our descriptive analyses, we estimated the magnitude of the associations of extracted features with affect experience (e.g., daily valence) using pairwise Pearson correlation.
+
+<!-- insert overview table of feature sets -->
+
+```{r featuresetstable, echo = FALSE, warning = FALSE, message=FALSE}
+
+require(dplyr)
+require(kableExtra)
+
+options(knitr.kable.NA = '') # knitr settings
+
+# create table
+keyboard_featuresets <- data.frame(
+  
+  feature_type = c("Word dictionaries", "Emoji and emoticons", "General text characteristics"),
+  
+  number_features = c("112", "65", "19"),
+
+  description = c("- share of words from LIWC categories from all produced text
+                  - sentiment scores", 
+                  "- statistics of the overall use of emoji and emoticons, 
+                  - emoji sentiment
+                  - statistics on the use of specific emoji and emoticons", 
+                  "- amount of text that hab been produced
+                  - share of added/changed/ removed text
+                  - share of words produced in different app and action contexts"
+                  )
+  
+  )
+
+
+knitr::kable(keyboard_featuresets,
+             format="markdown",
+      booktabs = TRUE,
+      col.names = c("Feature group", "Number of features", "Description"),
+      caption = "Computed language features",
+      label = "List of computed features from participants\' keyboard logs for the affect-linked language analyses. All features were computed for the respective time frame (e.g., per day)."
+      )
+
+```
+
+### Word Dictionaries
+
+<!-- Liwc, add detection rate? -->
+We used the latest German word dictionaries from the well-established Linguistic Inquiry and Word Count (LIWC) [@meierLIWCAufDeutsch2019; @pennebakerLinguisticInquiryWord2015]. LIWC dictionaries, such as *1st person singular* or *past focus*, have been theoretically derived and are clustered in a hierarchical structure: For example, the *sadness* category is a subcategory of *negative emotion*, which in turn is a subcategory of *affective processes*. Here, we computed the share of words from a given dictionary category (e.g., positive emotion words) from all written words for a given time window. Since LIWC has the same word categories across languages, we can compare word category scores for our German text data with prior studies that analyzed, for instance, English text data.
+
+<!-- sentiment, add detection rate? -->
+Moreover, we used the German SentiWS sentiment dictionary to obtain additional sentiment scores for logged words [@remusSentiWSPubliclyAvailable2010]. SentiWS contains 1650 negative and 1818 positive words with respective word forms and corresponding sentiment weights within the interval of [-1; 1]. Using those scores, we computed the median, standard deviation, minimum, and maximum word sentiment across typing sessions for a given time window.
+
+<!-- report dictionary matching rates for both dictionaries!! or mention in limitations?-->
+
+### Emoji, emoji sentiment, and Emoticons
+
+<!-- overall use of emoji and emoticons + emoji sentiment; add sentiment matching rate? -->
+With regard to participants' overall use of emoji and emoticons, we calculated the mean number of emoji and emoticons, the emoji- and emoticon-to-word ratios, and the number of unique emoji and emoticons across typing sessions for a given time frame. Additionally, we enriched logged emoji with a sentiment score within the interval of [-1; 1] from an emoji sentiment data base [@kraljnovakSentimentEmojis2015]. In the same manner as for word sentiment, we computed the median, standard deviation, minimum, and maximum emoji sentiment of typing sessions in a given time frame.
+
+<!-- use of specific emoji and emoticons, to do: check on emoticons!, add how many unique emoji and emoticons were used -->
+Like in prior work [@kochAgeGenderLanguage2022], we kept specific emoji and emoticons that had been used by at least 5% of participants in the whole sample of `r length(files)` participants to keep the focus on common emoji and emoticons. For those frequently used emoji and emoticons, we then counted how often each participant had used the respective specific one in a given time window and normalized their frequency use by dividing the count by the total number of emoji/ emoticons used by the respective participant in the time window.
+
+### Typing Dynamics
+
+<!-- these have been computed per typing session and then aggregated over a given time frame -->
+We computed a range of features that describe the typing dynamics of how logged text had been produced. Specifically, we calculated the median and standard deviation of the duration per typing session and per single word. Also, we computed the median and standard deviation of the number of words and characters that have been written per typing session. Finally, we calculated the median and standard deviation of the number of words that had been removed per typing session. Additionally, we utilized logged information from app use and input prompt texts to compute the share of text from all produced text that had been typed in different contexts (e.g., in private communication) and actions (e.g., commenting). Hereby, for instance, we were able to determine what share of all text that had been produced by a participant in a given time window had been typed in social media apps. 
+
+## Predictive Modelling
+
+<!-- describe general ml procedure  -->
+We trained two supervised machine learning algorithms on the extracted features for the prediction of self-reported affect experience. Specifically, we compared the predictive performance of linear regularized regression models (LASSO) [@tibshiraniRegressionShrinkageSelection1996] with those of a non-linear tree-based Random Forest [@breimanRandomForests2001; @wrightRangerFastImplementation2017], and a baseline model. The baseline model would predict the respective mean value for the target variable (e.g., daily valence) of the respective training set for all cases in a test set. Additionally, we included the prediction of participants' age and gender from all collected text data as a benchmark. Models were evaluated using a ten-fold ten times repeated cross-validation scheme [@bischlResamplingMethodsMetaModel2012]. For those models, where there were multiple instances per participant (e.g., multiple experience sampling days per single participant), we blocked participants in the resampling procedure to ensure that each participant is either included in the training or test set. 
+
+<!-- model evaluation -->
+We evaluated the predictive performance of trained models based on the coefficient of determination (*R*^2^) and Spearman's rank correlation (*r*). Before predictive modeling, we excluded features with more than 90% missing values and constant or near-constant features (i.e., with less than 5% variance). Moreover, we median-imputed extreme outlines (more than mean +/- 4 times *SD*) in the cross-validation procedure [@schoedelSnapshotsDailyLife2022]. To determine whether a model was predictive beyond chance (*alpha* = 0.05), we carried out variance-corrected (one-sided) t-tests comparing the *R*^2^ measures of all prediction models with those of the baseline models [@nadeauInferenceGeneralizationError2003]. We adjusted for multiple comparison (*n* = 30) via Holm correction. All data processing and statistical analyses in this work were performed with the statistical software R version 4.1.1 [@rcoreteamLanguageEnvironmentStatistical2021]. For machine learning, we used the *mlr3* framework [@langMlr3ModernObjectoriented2019]. Specifically, we used the *glmnet* [@friedmanRegularizationPathsGeneralized2010] and *ranger* [@wrightRangerFastImplementation2017] packages to fit prediction models. We pre-registered our analyses before accessing the data as a transparent account of our work [@kochAffectExperienceEveryday2022].
+
+# Results
+
+## Language Variations with Subjective Affect Experience
+
+<!-- Descriptive results: overall - include time and context effects directly! -->
+We found a range of affect-linked language variations across communication contexts and time frames in the collected keyboard language data. In the following section, we report on all pairwise Pearson correlations of language features with affect experience where the respective 95% confidence interval did not contain zero.
+
+<!-- focus on key descriptive findings here, rest goes into the supplements -->
+
+### Typing Dynamics
+
+```{r corr typing dynamics, echo = FALSE, warning=FALSE}
+
+# load required data
+cor_language_affect_meta_filtered <- round(as.data.frame(readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/insights/cor_language_affect_meta_filtered.RData")), 2)
+cor_language_affect_public_meta_filtered <- round(as.data.frame(readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/insights/cor_language_affect_public_meta_filtered.RData")),2)
+cor_language_affect_private_meta_filtered <- round(as.data.frame(readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/insights/cor_language_affect_private_meta_filtered.RData")),2)
+
+cor_language_affect_es_week_meta_filtered <- round(as.data.frame(readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/insights/cor_language_affect_es_week_meta_filtered.RData")),2)
+cor_language_affect_es_day_meta_filtered <- round(as.data.frame(readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/insights/cor_language_affect_es_day_meta_filtered.RData")),2)
+cor_language_affect_es_threehrs_meta_filtered <- round(as.data.frame(readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/insights/cor_language_affect_es_threehrs_meta_filtered.RData")),2)
+
+
+```
+
+<!-- Report correlations (only >.1!) in text since only few small coefficients -->
+<!-- trait -->
+We found distinct associations that are considered at least small (i.e., *r* > .1). of typing dynamics with trait affect experience only in private communication in the present data: Longer typing sessions (i.e., longer duration) (*r* = `r cor_language_affect_private_meta_filtered["na_panas", "typing_sessions_duration_md"]`) and more text per typing session (*r* = `r cor_language_affect_private_meta_filtered["na_panas", "character_count_added_session_md"]`) were negatively associated with negative trait affect. The variation (*SD*) in the text length per typing session measured in words (r= `r cor_language_affect_private_meta_filtered["pa_panas", "amount_words_typed_session_sd"]`) and characters (*r* = `r cor_language_affect_private_meta_filtered["pa_panas", "character_count_added_session_sd"]`) had a negative correlation with positive trait affect. Also, low typing speech as measured by the median typing duration per word was correlated with negative trait affect (*r* = `r cor_language_affect_private_meta_filtered["na_panas", "duration_word_md"]`). Where private messages had been produced also correlated with trait affect: Private messages composed in social media apps (e.g., Facebook) were positively associated with negative trait affect (*r* = `r cor_language_affect_private_meta_filtered["na_panas", "app_share_socialmedia"]`) while the correlation with negative trait affect was negative for text produced in communication apps (e.g., WhatsApp) (*r* = `r cor_language_affect_private_meta_filtered["na_panas", "app_share_communication"]`).
+
+&nbsp; 
+
+<!-- state -->
+With regard to weekly affect, it mattered most where text had been produced: We found a negative correlation of the share of text produced for data input (e.g., filling out online forms) and weekly valence (*r* = `r cor_language_affect_es_week_meta_filtered["valence_week", "action_share_datainput"]`). Also, weekly arousal was positively correlated with producing text on internet apps (e.g., browser apps) (*r* = `r cor_language_affect_es_week_meta_filtered["arousal_week", "app_share_internet"]`) and searching online (*r* = `r cor_language_affect_es_week_meta_filtered["arousal_week", "action_share_search"]`). On the contrary, the variation (*SD*) in the character count per typing session correlated negatively with weekly arousal (*r* = `r cor_language_affect_es_week_meta_filtered["arousal_week", "character_count_added_session_sd"]`). For daily affect, we only discovered a small correlation of daily valence and the share of text that had been produced inputting data (*r* = `r cor_language_affect_es_day_meta_filtered["valence_day", "action_share_datainput"]`). Finally, for momentary affect experience, there was a small negative correlation of the share of total text produced by posting online (e.g., on Facebook) with the fluctuations from one's valence baseline (*r* = `r cor_language_affect_es_threehrs_meta_filtered["diff_valence", "action_share_posting"]`) and of valence with the typing duration per word (*r* = `r cor_language_affect_es_threehrs_meta_filtered["valence", "duration_word_md"]`).
+
+### Word Dictionaries
+
+```{r corr dictionaries, echo = FALSE}
+
+# load required data
+cor_language_affect_dictionaries_filtered <- round(readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/insights/cor_language_affect_dictionaries_filtered.RData"),2)
+cor_language_affect_public_dictionaries_filtered <- round(readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/insights/cor_language_affect_public_dictionaries_filtered.RData"),2)
+cor_language_affect_private_dictionaries_filtered <- round(readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/insights/cor_language_affect_private_dictionaries_filtered.RData"),2)
+
+cor_language_affect_es_week_dictionaries_filtered <- round(readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/insights/cor_language_affect_es_week_dictionaries_filtered.RData"),2)
+cor_language_affect_es_day_dictionaries_filtered <-round(readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/insights/cor_language_affect_es_day_dictionaries_filtered.RData"),2)
+cor_language_affect_es_threehrs_dictionaries_filtered <- round(readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/insights/cor_language_affect_es_threehrs_dictionaries_filtered.RData"),2)
+
+```
+
+<!-- discuss overall corrs (only >.1!) & ALL context differences for TRAIT AFFECT, direct linguistic markers first, then indirect markers-->
+Different language patterns related to trait affect emerged from the logged word dictionaries in our data set (see Figure \@ref(fig:contexttraitoverview)). Moreover, Figure \@ref(fig:contexttraitdeepdive) depicts how the use of theoretically relevant (emotion) dictionaries differs with communication contexts for trait affect. 
+
+<!-- direct markers & trait-->
+With regard to *direct* linguistic markers of emotion, we found that median word sentiment was positively associated with positive trait affect in all logged text (*r* = `r cor_language_affect_dictionaries_filtered["pa_panas", "wordsentiment_md"]`) with respective correlation coefficients being smaller for private communication (*r* = 0.09) and even negative for public communication (*r* = -0.09). Negative emotion words were negatively correlated with positive trait affect (*r* = `r cor_language_affect_dictionaries_filtered["pa_panas", "LIWC_Negemo"]`) and positively with negative trait affect (*r* = `r cor_language_affect_dictionaries_filtered["na_panas", "LIWC_Negemo"]`) across all text inputs and in the sub-contexts. The same correlational patterns held true for the anger and anxiety dictionaries that are sub-dictionaries of negative emotions words. Positive emotion words did not show any relevant correlations with trait affect in any communication context in our data.
+
+```{r contexttraitoverview, echo = FALSE, warning=FALSE, fig.cap="Correlations of dictionaries with trait affect for all logged text and public and private communication separately. We considered coefficients where the 95\\% confidence interval did not contain zero.", fig.scap= "Word dictionary correlations with trait affect", out.width="100%",out.height = "95%", fig.align="center", results="asis"}
+
+knitr::include_graphics(path = "/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/figures/affect_dictionaries_plot_overview.png")
+```
+
+
+```{r contexttraitdeepdive, echo = FALSE, warning=FALSE, fig.cap="Selected correlations of dictionaries with trait affect for all logged text and public and private communication separately.",  fig.scap= "Selected word dictionary correlations with trait affect", out.width="100%", out.height = "100%", fig.align="center", results="asis"}
+
+knitr::include_graphics(path = "/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/figures/context_dictionaries_deepdive.png")
+```
+
+<!-- i have focused on the main corrs here, could discuss more in final paper -->
+<!-- indirect markers: function words -->
+We found a range of distinct correlations of *indirect* linguistic markers of emotion with trait affect. First, the overall use of first person singular (e.g., "I", "me") was negatively correlated with positive trait affect (*r* = `r cor_language_affect_dictionaries_filtered["pa_panas", "LIWC_I"]`) and positively with negative trait affect (*r* = `r cor_language_affect_dictionaries_filtered["na_panas", "LIWC_I"]`). Here, correlation coefficients were much bigger for public communication (*r*~PA~ = `r cor_language_affect_public_dictionaries_filtered["pa_panas", "LIWC_I"]`, *r*~NA~ = `r cor_language_affect_public_dictionaries_filtered["na_panas", "LIWC_I"]`) than for private communication (*r*~PA~ = -0.03, *r*~NA~ = 0.04). On the contrary, the use of first person plural (e.g., "we") was positively correlated with positive trait affect (*r* = `r cor_language_affect_dictionaries_filtered["pa_panas", "LIWC_We"]`) and negatively with negative trait affect (*r* = `r cor_language_affect_dictionaries_filtered["pa_panas", "LIWC_We"]`). These associations were stronger for private communication (*r*~PA~ = `r cor_language_affect_private_dictionaries_filtered["pa_panas", "LIWC_We"]`, *r*~NA~ = `r cor_language_affect_private_dictionaries_filtered["na_panas", "LIWC_We"]`) than for public communication (*r*~PA~ = 0.09, *r*~NA~ = -0.16).
+
+<!-- indirect markers: other grammar -->
+Moreover, using comparisons (e.g., "similar") was associated positively with negative trait affect overall (*r* = `r cor_language_affect_dictionaries_filtered["na_panas", "LIWC_Compare"]`) and particularly in public communication (*r* = `r cor_language_affect_public_dictionaries_filtered["na_panas", "LIWC_Compare"]`). Also, the use of interrogatives (e.g., "why") had a positive correlation with negative trait affect overall (*r* = `r cor_language_affect_dictionaries_filtered["na_panas", "LIWC_Interrog"]`), again especially in public communication.
+
+<!-- indirect markers: social processes -->
+In the same manner, two sub-categories of social processes, showed distinct correlational patterns: Male references had a positive correlation with positive trait affect (*r* = `r cor_language_affect_public_dictionaries_filtered["pa_panas", "LIWC_Male"]`) and a negative one with negative trait affect (*r* = `r cor_language_affect_public_dictionaries_filtered["na_panas", "LIWC_Male"]`) in public communication. Family-related words correlated positively with negative trait affect (*r* = `r cor_language_affect_private_dictionaries_filtered["pa_panas", "LIWC_Family"]`) and negatively with positive trait affect (*r* = `r cor_language_affect_private_dictionaries_filtered["pa_panas", "LIWC_Family"]`) in private communication. Also, words related to the drive for affiliation (e.g., "friend") had a positive correlation with positive trait affect overall (*r* = `r cor_language_affect_dictionaries_filtered["pa_panas", "LIWC_Affiliation"]`), particularly in private communication.
+
+<!-- indirect markers: perceptual processes -->
+Words related to perceptual processes, in particular regarding seeing and hearing, were related to trait affect with the strongest effects in public communication: Here, using words from the seeing dictionary was positively correlated with positive trait affect (*r* = `r cor_language_affect_public_dictionaries_filtered["pa_panas", "LIWC_See"]`) and negatively correlated with negative trait affect (*r* = `r cor_language_affect_public_dictionaries_filtered["na_panas", "LIWC_See"]`) in contrast to words from the hearing dictionary that were positively correlated to negative trait (*r* = `r cor_language_affect_public_dictionaries_filtered["pa_panas", "LIWC_Hear"]`) affect and negatively to positive trait affect (*r* = `r cor_language_affect_public_dictionaries_filtered["pa_panas", "LIWC_Hear"]`).
+
+<!-- indirect markers: biological processes -->
+Furthermore, two sub-categories of the biological processes category correlated with trait affect: Words related to body (e.g., "head") (*r*~PA~ = `r cor_language_affect_dictionaries_filtered["pa_panas", "LIWC_Body"]`, *r*~NA~ = `r cor_language_affect_dictionaries_filtered["na_panas", "LIWC_Body"]`) and health (e.g., "drug") (*r*~PA~ = `r cor_language_affect_dictionaries_filtered["pa_panas", "LIWC_Health"]`, *r*~NA~ = `r cor_language_affect_dictionaries_filtered["na_panas", "LIWC_Health"]`) correlated negatively with positive trait affect and positively with negative trait affect. Also, the use of words regarding death (e.g., ) (*r*~PA~ = `r cor_language_affect_dictionaries_filtered["pa_panas", "LIWC_Death"]`, *r*~NA~ = `r cor_language_affect_dictionaries_filtered["na_panas", "LIWC_Death"]`) showed the same correlation pattern. Remarkably, the health and death word categories had a positive correlation with positive trait affect in public communication.
+
+<!-- indirect markers: informal language -->
+Finally, the overall use of informal language (*r*~PA~ = `r cor_language_affect_dictionaries_filtered["pa_panas", "LIWC_Informal"]`, *r*~NA~ = `r cor_language_affect_dictionaries_filtered["na_panas", "LIWC_Informal"]`) and of its two sub-categories swear words and netspeak correlated positively with negative trait affect  and negatively with positive trait affect across communication channels. 
+
+### Weekly, Daily, and Momentary Affect
+
+<!-- discuss overall corrs for STATE AFFECT, direct markers first, then indirect markers-->
+Overall, correlations coefficients for weekly, daily, and momentary affect experience with word dictionaries were smaller than for trait affect. Moreover, with the time window getting smaller, the size of correlation coefficients also decreased. See Figure \@ref(fig:timevalencearousaloverview) for an overview of all dictionaries for which for any two time windows zero was not in the 95% confidence interval of the correlation coefficient. Moreover, Figure \@ref(fig:timevalencedeepdive) depicts a detailed overview of theoretically relevant (emotion) dictionaries and their correlations with self-reported valence over time (weekly, daily, momentary). 
+
+<!-- direct emotion markers ACROSS time windows-->
+Regarding *direct* linguistic markers of emotion, in the same fashion as for trait affect, the median word sentiment correlated positively with weekly valence (*r* = `r cor_language_affect_es_week_dictionaries_filtered["valence_week", "wordsentiment_md"]`) and the use of anxiety-related words correlated negatively with weekly valence (*r* = -0.11). For daily and momentary affect experience, correlation coefficients of emotion dictionaries with valence or arousal got much smaller. Remarkably, positive emotion words even correlated slightly negatively with momentary valence and valence fluctuation.
+
+<!-- INdirect markers ACROSS time windows: function words -->
+Regarding *indirect* markers of emotion, function words in particular, showed a distinct correlation pattern. Weekly valence correlated positively with the use of 2nd person plural (*r* = `r cor_language_affect_es_week_dictionaries_filtered["arousal_week", "LIWC_You_Plur"]`), overall use of 3rd person (*r* = `r cor_language_affect_es_week_dictionaries_filtered["valence_week", "LIWC_Other"]`) and its sub-categories 3rd person singular (*r* = `r cor_language_affect_es_week_dictionaries_filtered["valence_week", "LIWC_SheHe"]`) and 3rd person plural (*r* = `r cor_language_affect_es_week_dictionaries_filtered["valence_week", "LIWC_They"]`). In a similar fashion, weekly arousal correlated positively with 1st person plural (*r* = `r cor_language_affect_es_week_dictionaries_filtered["arousal_week", "LIWC_We"]`), 2nd person plural (*r* = `r cor_language_affect_es_week_dictionaries_filtered["arousal_week", "LIWC_You_Plur"]`), and 3rd person plural (*r* = `r cor_language_affect_es_week_dictionaries_filtered["arousal_week", "LIWC_They"]`). 
+
+<!-- indirect markers: interrogatives, social processes, perceptual processes, ingestion, dives, time-->
+In line with findings regarding trait affect, the use if interrogatives had a negative correlation with weekly valence (*r* = `r cor_language_affect_es_week_dictionaries_filtered["valence_week", "LIWC_Interrog"]`). The use of words related to family correlated positively with weekly arousal (*r* = 0.1) and negatively with momentary valence (*r*= -0.09) and valence fluctuation (*r* = -0.11). In the same fashion as for trait affect, we found perceptual processes (*r* = `r cor_language_affect_es_week_dictionaries_filtered["valence_week", "LIWC_Percept"]`) and its sub-category seeing (*r* = `r cor_language_affect_es_week_dictionaries_filtered["valence_week", "LIWC_See"]`) and hearing (*r* = `r cor_language_affect_es_week_dictionaries_filtered["valence_week", "LIWC_Hear"]`) to be correlated with weekly valence. Further, hearing was correlated negatively with weekly arousal (*r* = `r cor_language_affect_es_week_dictionaries_filtered["arousal_week", "LIWC_Hear"]`). Moreover, the ingestion word category (e.g., "eating") had a positive correlation with weekly valence (*r* = `r cor_language_affect_es_week_dictionaries_filtered["valence_week", "LIWC_Ingest"]`). Further, words related to drives (r = 0.11), particularly the drive for affiliation (*r* = `r cor_language_affect_es_week_dictionaries_filtered["arousal_week", "LIWC_Affiliation"]`) had a positive correlation with weekly arousal. Moreover, momentary valence correlated negatively with drives (*r* = `r cor_language_affect_es_threehrs_dictionaries_filtered["valence", "LIWC_Drives"]`) and its sub-dictionary achievement (e.g., "victory")
+(*r* = `r cor_language_affect_es_threehrs_dictionaries_filtered["valence", "LIWC_Achiev"]`). Finally, the use of words related to time correlated negatively with weekly valence (*r* = `r cor_language_affect_es_week_dictionaries_filtered["valence_week", "LIWC_Time"]`) and arousal (*r* = `r cor_language_affect_es_week_dictionaries_filtered["arousal_week", "LIWC_Time"]`) as well as momentary valence (*r* = -0.11).
+
+```{r timevalencearousaloverview, echo = FALSE, warning=FALSE, fig.cap="Correlations of dictionaries with affect for logged text across weekly, daily, and momentary time frames. We considered coefficients where the 95\\% confidence interval did not contain zero for at least two time windows.", fig.scap= "Word dictionary correlations with state affect", out.width="100%", out.height = "95%", fig.align="center", results="asis"}
+
+knitr::include_graphics(path = "/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/figures/affect_dictionaries_time_plot_overview.png")
+```
+
+
+```{r timevalencedeepdive, echo = FALSE, warning=FALSE, fig.cap= "Selected correlations of dictionaries with affective valence for logged text across weekly, daily, and momentary time frames.", fig.scap= "Selected word dictionary correlations with state affect", out.width="100%", out.height = "100%", fig.align="center", results="asis"}
+
+knitr::include_graphics(path = "/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/figures/time_dictionaries_deepdive.png")
+```
+
+### Emoji and Emoticons
+
+```{r corr emojiemoticon, echo = FALSE}
+
+# load emo package to display emoji in text
+library(emo)
+
+# load required data
+cor_language_affect_emojiemoticon_filtered <- round(as.data.frame(readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/insights/cor_language_affect_emojiemoticon_filtered.RData")),2)
+cor_language_affect_public_emojiemoticon_filtered <- round(as.data.frame(readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/insights/cor_language_affect_public_emojiemoticon_filtered.RData")),2)
+cor_language_affect_private_emojiemoticon_filtered <- round(as.data.frame(readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/insights/cor_language_affect_private_emojiemoticon_filtered.RData")),2)
+
+cor_language_affect_es_week_emojiemoticon_filtered <- round(as.data.frame(readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/insights/cor_language_affect_es_week_emojiemoticon_filtered.RData")),2)
+cor_language_affect_es_day_emojiemoticon_filtered <- round(as.data.frame(readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/insights/cor_language_affect_es_day_emojiemoticon_filtered.RData")),2)
+cor_language_affect_es_threehrs_emojiemoticon_filtered <- round(as.data.frame(readRDS(file="/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/insights/cor_language_affect_es_threehrs_emojiemoticon_filtered.RData")),2)
+
+```
+
+<!-- Overall emoji and emoticons use (only few corrs w r > .1 - no need for a table ) for TRAIT and STATE -->
+
+This section presents discovered distinct patterns of general emoji and emoticon use across communication contexts and time frames that can be considered at least small (i.e., *r* > .1). For trait affect, the overall use of emoticons in particular was related to negative trait affect: Across all typed text, the number of unique emoticons used was negatively correlated with positive trait affect (*r* = `r cor_language_affect_emojiemoticon_filtered["pa_panas", "uniqueemoticon_total"]` and positively with negative trait affect (*r* = `r cor_language_affect_emojiemoticon_filtered["na_panas", "uniqueemoticon_total"]`). Also, in private communication, the total use of unique emoticons was positively associated with negative trait affect (*r* = `r cor_language_affect_private_emojiemoticon_filtered["na_panas", "uniqueemoticon_total"]`) and negatively with positive trait affect (*r* = `r cor_language_affect_private_emojiemoticon_filtered["pa_panas", "uniqueemoticon_total"]`). In the same manner, the number of unique emoticons per typing session in private communication had a negative correlation with positive trait affect (*r* = `r cor_language_affect_private_emojiemoticon_filtered["pa_panas", "uniqueemoticon_persession"]`). Furthermore, the standard deviation in emoji sentiment across typing sessions was negatively correlated with negative trait affect in private messages (*r* = `r cor_language_affect_private_emojiemoticon_filtered["na_panas", "emojisentiment_sd"]`). In public communication contexts, the maximum emoji sentiment across typing sessions was associated negatively with negative trait affect (*r* = `r cor_language_affect_public_emojiemoticon_filtered["na_panas", "emojisentiment_max"]`). 
+
+<!-- state -->
+With regard to weekly affect, we found a negative correlation of unique emoticons per typing session and weekly arousal (*r* = `r cor_language_affect_es_week_emojiemoticon_filtered["arousal_week", "uniqueemoticon_persession"]`). For daily valence and arousal, no such patterns emerged from the data. Finally, there was a negative correlation of the total use of unique emoticons and momentary affective valence (*r* = `r cor_language_affect_es_threehrs_emojiemoticon_filtered["valence", "uniqueemoticon_total"]`).
+
+<!-- Specific emoji/ emoticon TRAIT preferences: Descriptive the patterns that are visible in the figure, only report on emoji across channels -->
+While the overall use of emoticons was indicative of affect, the use of specific emoticons was not. On the contrary, preferences for specific emoji varied with affect experience. Figure \@ref(fig:emojigridtrait) shows emoji that are associated with positive and negative trait affect across communication channels. Across communication contexts, the dog emoji ("![dogemoji](/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/figures/emoji/face-blowing-a-kiss.png){width=12px height=12px}") was correlated positively with positive trait affect and slightly negatively with negative trait affect. Also, "![innocentemoji](/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/figures/emoji/smiling-face-with-halo.png){height=12px width=12px}", "![heartsfaceemoji](/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/figures/emoji/smiling-face-with-3-hearts.png){width=12px height=12px}", and "![winkemoji](/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/figures/emoji/winking-face.png){width=12px height=12px}" had a positive correlation with positive trait affect and a negative one with negative trait affect. On the contrary, the "![facepalmemoji](/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/figures/emoji/man-facepalming.png){width=12px height=12px}" emoji was correlated negatively with positive trait affect and positively with negative trait affect in all logged text and in private communication.
+
+<!-- Specific emoji/ emoticon STATE preferences: Descriptive the patterns that are visible in the figure, only report on emoji across channels -->
+
+In the same manner as for word dictionaries, correlations of specific emoji were less conclusive for smaller time windows. Figure \@ref(fig:emojigridweeklydaily) depicts correlations of emoji with weekly and daily valence and arousal. Figure \@ref(fig:emojigridmoment) shows emoji correlations with between-person differences and within-person fluctuations in momentary affect. Across time windows, "![rainbowemoji](/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/figures/emoji/rainbow.png){height=12px width=12px}" was negatively correlated with valence and arousal. Also, "![kissemoji](/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/figures/emoji/kiss-mark.png){height=12px width=12px}" correlated negatively with daily and momentary valence and arousal. On the contrary, "![innocentemoji](/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/figures/emoji/smiling-face-with-halo.png){height=12px width=12px}" had a positive correlation with weekly and daily valence and a negative one with respective arousal. 
+
+<!-- show 1-2 emoji valence / arousal grid figures here! -->
+
+
+```{r emojigridweeklydaily, echo = FALSE, warning=FALSE, fig.cap= "Correlations of specific emoji with affect experience on the dimensions of valence and arousal across weekly and daily time frames. Displayed are all emoji where the 95\\% confidence interval for the correlation coefficient did not contain zero.", fig.scap= "Emoji correlations with weekly and daily affect", out.width="60%",out.height = "80%", fig.align="center", results="asis"}
+
+knitr::include_graphics(path = "/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/figures/emoji_preferences_weeklydaily.png")
+```
+
+
+```{r emojigridmoment, echo = FALSE, warning=FALSE, fig.cap= "Correlations of specific emoji with affect experience on the dimensions of momentary valence and arousal as well as respective affect fluctuations. Displayed are all emoji where the 95\\% confidence interval for the correlation coefficient did not contain zero.", fig.scap= "Emoji correlations with momentary affect", out.width="60%",out.height = "80%", fig.align="center", results="asis"}
+
+knitr::include_graphics(path = "/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/figures/emoji_preferences_moment.png")
+```
+
+## Predicting Subjective Affect Experience
+
+```{r predictionperformance, echo = FALSE, warning=FALSE}
+
+library(mlr3)
+
+# load required data
+bmr_keyboardlanguage_age <- readRDS("/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/predictions/bmr_keyboardlanguage_age.RData")
+
+bmr_keyboardlanguage_gender <- readRDS("/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/predictions/bmr_keyboardlanguage_gender.RData")
+
+bmr_keyboardlanguage_trait <- readRDS("/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/predictions/bmr_keyboardlanguage_trait.RData")
+
+bmr_keyboardlanguage_week <- readRDS("/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/predictions/bmr_keyboardlanguage_week.RData")
+
+bmr_keyboardlanguage_day <- readRDS("/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/predictions/bmr_keyboardlanguage_day.RData")
+
+bmr_keyboardlanguage_moment <- readRDS("/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/results/predictions/bmr_keyboardlanguage_moment.RData")
+
+# measures for benchmark
+mes = msrs(c("regr.rsq", "regr.srho"))
+
+# extract performance measures
+
+mes_age <- bmr_keyboardlanguage_age$aggregate(mes)
+mes_gender <- bmr_keyboardlanguage_gender$aggregate(msrs(c("classif.acc", "classif.auc")))
+mes_trait <- bmr_keyboardlanguage_trait$aggregate(mes)
+mes_week <- bmr_keyboardlanguage_week$aggregate(mes)
+mes_day <- bmr_keyboardlanguage_day$aggregate(mes)
+mes_moment <- bmr_keyboardlanguage_moment$aggregate(mes)
+
+```
+
+<!-- Report on overall prediction results here & also age prediction as sanity check + short paragraph on context and time effects-->
+<!-- talk about overall prediction performance -->
+Overall, none of the employed algorithms predicted affect experience in any communication context or time frame significantly better than chance. Figure \@ref(fig:predictionoverview) provides an overview of the performance of all learners across prediction tasks.
+
+<!-- some words about algo performance -->
+On average, Random Forest models performed slightly better than the LASSO algorithm across prediction tasks, indicating non-linear predictor-outcome relationships between keyboard language characteristics and affect experience across communication contexts and time frames. Consequently, we will report on the average performance of Random Forest models across cross-validation folds in this section.
+
+<!-- performance for trait communication contexts -->
+With regard to communication contexts, even though not better than chance, predictions of trait affect were slightly better for private communication (*R*^2^~PA~ = `r round(mean(mes_trait[which(mes_trait$learner_id == "scale.imputemedian.regr.ranger" & mes_trait$task_id  == "keyboardlanguage_private_pa")]$regr.rsq, na.rm = T),2)`, *r*~PA~ = `r round(mean(mes_trait[which(mes_trait$learner_id == "scale.imputemedian.regr.ranger" & mes_trait$task_id  == "keyboardlanguage_private_pa")]$regr.srho, na.rm = T),2)`, *R*^2^~NA~ = `r round(mean(mes_trait[which(mes_trait$learner_id == "scale.imputemedian.regr.ranger" & mes_trait$task_id  == "keyboardlanguage_private_na")]$regr.rsq, na.rm = T),2)`, *r*~NA~ = `r round(mean(mes_trait[which(mes_trait$learner_id == "scale.imputemedian.regr.ranger" & mes_trait$task_id  == "keyboardlanguage_private_na")]$regr.srho, na.rm = T),2)`) than for public communication (*R*^2^~PA~ = `r round(mean(mes_trait[which(mes_trait$learner_id == "scale.imputemedian.regr.ranger" & mes_trait$task_id  == "keyboardlanguage_public_pa")]$regr.rsq, na.rm = T),2)`, *r*~PA~ = `r round(mean(mes_trait[which(mes_trait$learner_id == "scale.imputemedian.regr.ranger" & mes_trait$task_id  == "keyboardlanguage_public_pa")]$regr.srho, na.rm = T),2)`, *R*^2^~NA~ = `r round(mean(mes_trait[which(mes_trait$learner_id == "scale.imputemedian.regr.ranger" & mes_trait$task_id  == "keyboardlanguage_public_na")]$regr.rsq, na.rm = T),2)`, *r*~NA~ = `r round(mean(mes_trait[which(mes_trait$learner_id == "scale.imputemedian.regr.ranger" & mes_trait$task_id  == "keyboardlanguage_public_na")]$regr.srho, na.rm = T),2)`). Still, in comparison, predictions on all text data combined performed best (*R*^2^~PA~ = `r round(mean(mes_trait[which(mes_trait$learner_id == "scale.imputemedian.regr.ranger" & mes_trait$task_id  == "keyboardlanguage_pa")]$regr.rsq, na.rm = T),2)`, *r*~PA~ = `r round(mean(mes_trait[which(mes_trait$learner_id == "scale.imputemedian.regr.ranger" & mes_trait$task_id  == "keyboardlanguage_pa")]$regr.srho, na.rm = T),2)`, *R*^2^~NA~ = `r round(mean(mes_trait[which(mes_trait$learner_id == "scale.imputemedian.regr.ranger" & mes_trait$task_id  == "keyboardlanguage_na")]$regr.rsq, na.rm = T),2)`, *r*~NA~ = `r round(mean(mes_trait[which(mes_trait$learner_id == "scale.imputemedian.regr.ranger" & mes_trait$task_id  == "keyboardlanguage_na")]$regr.srho, na.rm = T),2)`).
+
+<!-- performance for state time frames -->
+With regard to the time frame, predictions were more accurate for bigger time windows, but still not better than chance. For instance, the prediction performance for weekly valence (*R*^2^ = `r round(mean(mes_week[which(mes_trait$learner_id == "scale.imputemedian.regr.ranger" & mes_week$task_id  == "keyboardlanguage_week_valence")]$regr.rsq, na.rm = T),2)`, *r* = `r round(mean(mes_week[which(mes_trait$learner_id == "scale.imputemedian.regr.ranger" & mes_week$task_id  == "keyboardlanguage_week_valence")]$regr.srho, na.rm = T),2)`) and arousal (*R*^2^ = `r round(mean(mes_week[which(mes_trait$learner_id == "scale.imputemedian.regr.ranger" & mes_week$task_id  == "keyboardlanguage_week_arousal")]$regr.rsq, na.rm = T),2)`, *r* = `r round(mean(mes_week[which(mes_trait$learner_id == "scale.imputemedian.regr.ranger" & mes_week$task_id  == "keyboardlanguage_week_arousal")]$regr.srho, na.rm = T),2)`) was, on average, better than for momentary valence (*R*^2^ = `r round(mean(mes_moment[which(mes_moment$learner_id == "scale.imputemedian.regr.ranger" & mes_moment$task_id  == "keyboardlanguage_threehrs_valence")]$regr.rsq, na.rm = T),2)`, *r* = `r round(mean(mes_moment[which(mes_moment$learner_id == "scale.imputemedian.regr.ranger" & mes_moment$task_id  == "keyboardlanguage_threehrs_valence")]$regr.srho, na.rm = T),2)`) and arousal (*R*^2^ = `r round(mean(mes_moment[which(mes_moment$learner_id == "scale.imputemedian.regr.ranger" & mes_moment$task_id  == "keyboardlanguage_threehrs_arousal")]$regr.rsq, na.rm = T),2)`, *r* = `r round(mean(mes_moment[which(mes_moment$learner_id == "scale.imputemedian.regr.ranger" & mes_moment$task_id  == "keyboardlanguage_threehrs_arousal")]$regr.srho, na.rm = T),2)`). 
+
+<!-- compare performance to demographic predictions -->
+Finally, predictions of participants' age (*R*^2^ = `r round(mes_age[which(mes_age$learner_id == "scale.imputemedian.regr.cv_glmnet")]$regr.rsq, 2)`, *r* = `r round(mes_age[which(mes_age$learner_id == "scale.imputemedian.regr.cv_glmnet")]$regr.srho, 2)`) and gender (prediction accuracy = `r round((mes_gender[which(mes_gender$learner_id == "scale.imputemedian.classif.cv_glmnet")]$classif.acc)*100, 2)`%) from all logged text suggest that typed smartphone language allows for inferences about user demographics.
+
+\newpage
+
+```{r predictionoverview, echo = FALSE, warning=FALSE, fig.cap= "Prediction performance measures of prediction models from 10-fold ten times repeated cross-validation for affect predictions for each feature (sub) set and across communication contexts and time frames.", fig.scap="Prediction performance study 2", out.width="80%",  out.height="95%", fig.align="center", results="asis"}
+
+knitr::include_graphics(path = "/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/figures/bmr_keyboardlanguage_plot.png")
+```
+
+\newpage
+
+# Discussion
+
+<!-- mini summary of findings, use past tense here  -->
+The present study generated novel insights into affective language patterns across communication contexts and time frames by analyzing everyday textual language that had been logged using off-the-shelf smartphones. For our descriptive and predictive analyses, we leveraged typing dynamics, word (sentiment) dictionaries, and emoji and emoticon use. Beyond the distinctive (in-sample) associations of specific language features with affect experience we found, (out-of-sample) predictions of affect experience from the extracted language cues were, however, not significantly better than chance.
+
+## Affect Experience in Smartphone Language
+
+<!-- typing dynamics: discuss descriptive findings and compare prior studies -->
+In line with prior literature, we found typing speed (i.e., typing duration per word) to be associated with (negative) affect experience [@ghoshEmotionDetectionTouch2019; @ghoshEvaluatingEffectivenessSmartphone2017]. Moreover, in our data, we found the context (i.e., social media apps versus communication apps) in which language had been produced to be indicative of affect experience.  
+
+<!-- dictionaries - direct markers: discuss descriptive findings (direct and indirect markers) and compare prior studies -->
+Our findings with regard to *direct* linguistic markers of emotion, even though correlations were small, are in line with the theory that emotional word use corresponds to affect experience: We found a positive correlation of word sentiment with positive trait affect and a negative one with negative trait affect. Moreover, the use of negative emotion words showed expected negative correlations with positive trait affect and positive ones with negative trait affect across channels, while positive emotion words did not yield distinct correlations with trait affect. For smaller time frames, however, those correlations decreased in size or vanished entirely.
+
+<!-- dictionaries - indirect markers (compare to priors studies) -->
+We also discovered a range of *indirect* linguistic markers of emotion in our data. For instance, in line with prior literature, we found the use of first person singular (e.g., "I" or "me"), particularly in public communication, to be positively associated with negative affect and negatively associated with positive affect [@tackmanDepressionNegativeEmotionality2018]. On the contrary, the use of first person plural (e.g., "we") showed a negative correlation with negative trait affect and a positive correlation with positive trait affect as found in prior work [@sunLanguageWellbeingTracking2020]. Beyond these well-studied LIWC categories, additional noteworthy associations of indirect linguistic markers of emotion emerged in our data. For instance, the use of comparisons and interrogatives was associated with negative trait affect, particularly in public communication. Also, the use of hearing-related words was indicative of negative trait affect, while seeing-related words were associated with a positive trait affect, again particularly in public communication.
+
+<!-- emoji: discuss descriptive findings and compare prior studies (we are the first to use subjective experience!) -->
+After prior studies had used raters to assign affective labels to emoji and emoticons [@kutsuzawaClassification74Facial2022; @kraljnovakSentimentEmojis2015; @krekhovInterpolatingHappinessUnderstanding2022], the present work is, to our knowledge, the first to analyze the link of emoji and emoticon use with subjective affect experience. Our findings suggest that the overall use of emoticons is related to negative trait and state affect experience. Regarding emoji, no such overall pattern emerged, but some specific emoji, such as "![dogemoji](/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/figures/emoji/dog-face.png){width=12px height=12px}" and "![smilingfaceheartsemoji](/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/figures/emoji/smiling-face-with-3-hearts.png){width=12px height=12px}", were found to be related to  positive trait affect, while others (e.g., "![facepalmemoji](/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/figures/emoji/man-facepalming.png){width=12px height=12px}") correlated with negative trait affect. Again, as for word dictionaries, findings were less conclusive regarding associations of affect experience and emoji use for smaller time windows. Here, particularly the "![rainbowemoji](/Users/timokoch/LRZ Sync+Share/PhoneStudy_Paper/affect-smartphone-language/figures/emoji/rainbow.png){width=12px height=12px}" emoji that had been used as a symbol of hope during the COVID-19 pandemic was consistently negatively correlated with weekly, daily, and momentary valence and arousal. 
+
+## Predicting Affect Experience from Everyday Smartphone Language 
+
+<!-- Predicting affect experience is challenging - especially in smaller time window! What does this mean for research and practice? -->
+Even though the reported non-significant prediction performance for affect experience in this work is inferior to prediction studies based on labelled text data [@eichstaedtTrackingFluctuationsPsychological2020] it is in line with the limited prior work that used written smartphone language and affective self-reports from the wild [@carlierSearchStateTrait2022]. As a result, our findings suggest that algorithmically recognizing subjective affect experience, especially in small time windows, from everyday smartphone language is difficult, particularly using the occurrence-counts, such as word dictionaries, as employed on the present study. Still, leveraging digital language traces logged with smartphones has many potential upsides compared to other text sources, such as social media, since text can be logged across communication channels and over time allowing to also model within-person fluctuations of affect. However, more research is needed before the promising applications, for instance in mood monitoring for mental health care, can be reliably deployed.
+
+## Communication Context Matters
+
+<!-- distinct correlation patterns in different contexts (e.g., I-talk, compare),  + what does this mean for research and practice? -->
+In line with prior research on language differences across communication channels, our results illustrate the importance of considering the communication context in language analysis [@mehlHowTakingWord2013]. Depending on the communication context (private messages versus public posting), some language-affect associations were different in our data. For example, I-talk (first person singular) was particularly highly correlated with negative trait affect in public communication, but not in private communication. On the contrary, we-talk (first person plural) correlated higher with positive trait affect in private communication than in the public one.  
+
+<!-- slightly better predictions for private communication than public communication (bc of self disclosure?) -->
+Also, predictions, even though not significantly above chance, were slightly better for text produced in private contexts than public ones. This could be due to participants engaging in selective emotional self-disclosure in public communication, such as social media [@qiuPuttingTheirBest2012], making inferences of affect experience more challenging. The slightly better predictions from private communication could also come from the difference in sample sizes that were available for private and public communication with the latter being smaller. Overall, as a consequence from our findings, researchers and practitioners should always consider the communication context the text data had been produced in and keep in mind that findings and trained models might be specific to the given communication context and do not necessarily generalize well to other communication contexts. 
+
+## Time Context Matters 
+
+<!-- are there papers on liwc across time aggregation windows? No, we are the first! overall intro + example -->
+To our knowledge, this work is the first of its kind to investigate how affect-linked language patterns change over different time frames. Depending on the time window, some affect-language associations changed in the analyzed data. For instance, median word sentiment correlated positively with positive trait affect and weekly affective valence but had a close to zero correlation with momentary valence. Consequently, researchers and practitioners should always consider the time scale (e.g., one's overall trait affect or affect experience in a specific moment) which they want to investigate affect-linked language in. As our results have shown, the chosen time focus might have a strong impact on the findings.
+
+<!-- The smaller the time frame, the smaller the descriptive associations and the weaker the predictions and the smaller the correlations -->
+<!-- some words about overall occurrence-count (e.g., dictionaries) based approaches and their limits -->
+Furthermore, for smaller selected time windows, for instance momentary instead of weekly affect, descriptive associations (i.e., correlation coefficients) and models' prediction performance were also weaker in our data. These findings illustrate that assessing affect experience, particularly on smaller time scales, using the current occurrence-count approaches, such as word dictionaries, is limited. Specifically, our results indicate that occurrence-based metrics (i.e., counting negative emotion words or single emoji) work to an extent for traits, but reach their limits for smaller time windows, possibly since they do not consider language context. For instance, if participants wrote "not happy" LIWC would count one negation and one positive emotion word. While trait associations and predictions over longer periods are not as affected by the lack of context consideration, state affect in small time frames is often highly context dependent and, consequently, requires linguistic context. Therefore, researchers should be aware of the limits of occurrence-counts, like word dictionaries, especially for small time frames and potentially use other methods as discussed in the next section. 
+
+# Limitations and Outlook
+
+<!-- only put study specific limitations here, general limitations go to chapter 4! -->
+Besides the general limitations related to the data collection method and the measurement of self-reported affect experience that are discussed in the general discussion of the present dissertation (see section \@ref(generallimitations)), there are three specific limitations of this study.  
+
+<!-- Only word counting approach, low-ish detection rate, no advanced NLP models # what are implications for research and practice -->
+First and foremost, to protect participants' privacy, we did not log the raw words participants had typed into their smartphones and, instead, categorized words based on common word dictionaries directly on their devices. As a consequence, we did not have the raw text data that we could apply advanced NLP methods to, like topic models or word embeddings. These techniques usually show superior predictive performance compared to dictionary approaches since, among other reasons, they are able to consider language's context [@eichstaedtClosedOpenvocabularyApproaches2021; @kjellNaturalLanguageAnalyzed2022]. Word dictionaries, such as LIWC and sentiment dictionaries, on the contrary, do not recognize language context (e.g., "I am *not* happy") and rely on comparably simple word count occurrences. Furthermore, dictionaries can only detect those words from their internal word lists. As a consequence, even though there is a "netspeak" category in LIWC that is supposed to capture online slang words, dictionaries cannot detect unknown words, such as newly emerging words or words with typos. In our study, on average, 50% of typed words had been recognized by LIWC. This dictionary detection rate is smaller than those reported in prior work using, for example, WhatsApp messages [@kochAgeGenderLanguage2022] but similar to prior word based on logged smartphone language [@carlierSearchStateTrait2022]. To overcome the limitations of dictionary approaches, future studies could use pre-trained language models and deploy them directly on participants' smartphones, which would allow researchers to extract context-aware language characteristics on the device without logging raw text data [@sunPreTrainedBERTModel2022; @niuRealTimeExecutionLargescale2020].  
+
+<!-- we ONLY have smartphone language, extend to other language sources  -->
+Second, even though smartphones have become our everyday companions, we only reported on participants’ everyday language produced on their smartphones in this study. However, people often use and switch between multiple devices every day [@reevesScreenomicsFrameworkCapture2021]. As a consequence, we were not able to capture participants' entirety of written language per day. Future work could expand the number of devices observed to include, for example personal computers, laptops, and tablets, using our language logging approach to capture all of participants' produced text.  
+
+<!-- Choice of time aggregation windows / time modeling decisions -->
+Third, the findings of this study with regard to different time frames are bound to the specific modeling decision we made. For instance, we chose to analyze weekly, daily, and momentary affect experience. For momentary affect experience, we chose to aggregate all text produced up to 90 minutes before and after the experience sampling instance. Different modeling decision could lead to different findings: For example, if one were to aggregate all text for a given time frame *before* the experience sampling or *after*, or predicting language use from affect self-reports, results might look different [@krossDoesCountingEmotion2019]. Therefore, future work could extend on our reported analyses in multiple ways by applying different time windows or running sensitivity analyses to find the optimal time window to capture momentary affect experience. Future studies could also experimentally induce desired affect or detect emotion onset from other sensing modalities (e.g., heart rate) and capture corresponding language using our language logging approach.
+
+# Conclusion
+
+<!-- summary of discussion: dictionaries suck for small time windows, smartphones are awesome to collect data! -->
+This study employed a novel data collection approach to analyze affective language patterns across communication contexts and time frames in everyday smartphone language. We found distinct in-sample associations of language use, such as I-talk, with affect experience that highlight the importance of distinguishing between time frames (i.e., trait, weekly, daily, momentary) and communication contexts (i.e., private versus public communication). Overall, however, prediction performance of employed machine learning models was not significantly better than chance. These findings emphasize the challenges of using occurrence-counts, such as word dictionaries, to infer subjective affect experience, particularly for small time windows. Finally, this work highlights the opportunities of employing smartphones to collect and analyze language data in everyday life. 
+
+\newpage
+
+# References
+
+\begingroup
+\setlength{\parindent}{-0.5in}
+\setlength{\leftskip}{0.5in}
+
+<div id="refs" custom-style="Bibliography"></div>
+\endgroup
