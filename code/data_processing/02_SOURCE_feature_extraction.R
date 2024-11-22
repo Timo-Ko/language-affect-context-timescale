@@ -1,0 +1,123 @@
+### PREPROCESSING AND FEATURE EXTRACTION ###
+
+# load ema data
+ema_data = readRDS("data/results/ema_data.rds")
+ema_day = readRDS("data/results/ema_day.rds")
+ema_week = readRDS("data/results/ema_week.rds")
+
+# get files names of user with keyboard data
+file_names = list.files(path = "/home/rstudio/data/ps_keyboard", full.names = T)
+
+# do some data checks 
+#file_details <- file.info(file_names) # get file infos
+
+#data_list <- lapply(file_names, readRDS) # get list with dfs
+
+# get user ids
+users = sub("\\.rds$", "", basename(file_names))
+
+# create feature extraction function
+for (user in users) {
+
+  tryCatch({
+    
+    t1 = Sys.time()
+  
+    # print info
+    print(paste("Staring with user", user))
+    
+    # Step 1: Pull keyboard data for that user 
+    keyboard_data <- readRDS(paste0("/home/rstudio/data/ps_keyboard/", user, ".rds"))
+    
+    if (sum(keyboard_data$words_typed, na.rm =T) < 1) {
+      
+      print(paste(user, "did not type any words"))
+      next # if no word events have been logged, skip to next user 
+      
+    }
+    
+    # Step 2: Label esm moments in keyboard data 
+    es_user = ema_data %>% filter(user_id == user) %>% ungroup() # filter out es data from that user
+    
+    if(nrow(es_user) > 0){ # execute this code if there is esm data for that user
+    
+    # label experience sampling snippets in keyboard data (this function assumes already corrected time stamps)
+    keyboard_data = label_ema_in_keyboard(keyboard_data, es_user, 90, 90)  %>% as.data.frame()
+    
+    } else { keyboard_data$es_questionnaire_id = NA }
+    
+    # Step 3: Keyboard feature extraction
+    
+    # es moment
+    keyboard_data_es <- keyboard_data %>% filter(!is.na(es_questionnaire_id)) # filter out sessions rows with corresponding es data
+
+    keyboard_features_es = extract_keyboard_features(keyboard_data_es, "es_questionnaire_id", "all", 100)
+
+    if(nrow(keyboard_features_es) > 0){
+      write.csv2(keyboard_features_es, paste0("data/results_temp/keyboard/es/", user, ".csv"), row.names = FALSE)
+    }
+
+    # # days in es period 
+    # keyboard_data_esdays <- keyboard_data %>% filter(date %in% ema_day[ema_day$user_id == user, "date"]$date) # filter keyboard_data for days with es data 
+    # 
+    # keyboard_features_day = extract_keyboard_features(keyboard_data_esdays, "date", "all", 100)
+    # 
+    # if(nrow(keyboard_features_day) > 0){
+    #   write.csv2(keyboard_features_day, paste0("data/results_temp/keyboard/day/", user, ".csv"), row.names = FALSE)
+    # }
+    # 
+    # # weeks in es period 
+    # keyboard_data_esweeks <- keyboard_data %>% filter(week %in% ema_week[ema_week$user_id == user, "week"]$week) # filter keyboard_data for weeks with es data 
+    # 
+    # keyboard_features_week = extract_keyboard_features(keyboard_data_esweeks,  "week", "all", 100)
+    # 
+    # if(nrow(keyboard_features_week) > 0){
+    #   write.csv2(keyboard_features_week, paste0("data/results_temp/keyboard/week/", user, ".csv"), row.names = FALSE)
+    # }
+    # 
+    # all produced text during study period
+    keyboard_features = extract_keyboard_features(keyboard_data, "user_uuid", "all", 100)
+
+    if(nrow(keyboard_features) > 0){
+      write.csv2(keyboard_features, paste0("data/results_temp/keyboard/all/all/", user, ".csv"), row.names = FALSE)
+    }
+
+    # all produced text during study period - private communication
+    keyboard_features_private = extract_keyboard_features(keyboard_data, "user_uuid", "private", 100)
+
+    if(nrow(keyboard_features_private) > 0){
+      write.csv2(keyboard_features_private, paste0("data/results_temp/keyboard/all/private/", user, ".csv"), row.names = FALSE)
+    }
+
+    # all produced text during study period - public communication
+    keyboard_features_public = extract_keyboard_features(keyboard_data, "user_uuid", "public", 100)
+
+    if(nrow(keyboard_features_public) > 0){
+      write.csv2(keyboard_features_public, paste0("data/results_temp/keyboard/all/public/", user, ".csv"), row.names = FALSE)
+    }
+    
+    t2 = Sys.time()
+    processing_time <- round(as.numeric(difftime(t2, t1, units = "mins")),2)
+    
+    # print extraction status update 
+    print(paste("Features of user", user, "taking", processing_time, "minutes were extracted. This is user number", which(users==user), "out of", length(users)))
+    write(paste0(Sys.time(),": SUCCESS: user", user," completed"), file = "data/errorlog_extraction.txt", append = TRUE)
+    
+    # remove sensing, keyboard and es data frames from that user after feature extraction
+    rm( keyboard_data, 
+         keyboard_features_es, keyboard_features_day, keyboard_features_week, 
+         keyboard_features, keyboard_features_private, keyboard_features_public)
+
+  },
+  
+  # Tell tryCatch what do in case of an error
+  error=function(e) {
+    write(paste0(Sys.time(),": ERROR: ",conditionMessage(e)," --> Current user is: ", user), file = "data/errorlog_extraction.txt", append = TRUE)
+  })
+  
+} # end of loop
+
+# apply keyboard feature extraction function
+#lapply(users, keyboard_feature_extraction)
+
+### Continue with 03_SOURCE_feature_combination.R ###
