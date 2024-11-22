@@ -24,26 +24,26 @@ options(scipen = 999)
 ## load required scripts 
 
 # Helper functions
-source("Feature_Engineering/helper/aggregation.R")
-source("Feature_Engineering/helper/connectivity_preprocessing.R")
-source("Feature_Engineering/helper/ema_labels.R")
-source("Feature_Engineering/helper/fill_information_up.R")
-source("Feature_Engineering/helper/helper_JsonFormat.R")
-source("Feature_Engineering/helper/helper_variables.R")
-source("Feature_Engineering/helper/summary_es.R")
-source("Feature_Engineering/helper/timestamp_correction.R")
+source("code/data_processing/helper/aggregation.R")
+source("code/data_processing/helper/connectivity_preprocessing.R")
+source("code/data_processing/helper/ema_labels.R")
+source("code/data_processing/helper/fill_information_up.R")
+source("code/data_processing/helper/helper_JsonFormat.R")
+source("code/data_processing/helper/helper_variables.R")
+source("code/data_processing/helper/summary_es.R")
+source("code/data_processing/helper/timestamp_correction.R")
 
 # scripts for self-reports
-source("Feature_Engineering/self_reports/ema/ema_coding_answers.R")
-source("Feature_Engineering/self_reports/ema/ema_general_preprocessing.R")
+source("code/data_processing/self_reports/ema/ema_coding_answers.R")
+source("code/data_processing/self_reports/ema/ema_general_preprocessing.R")
 
 # scripts for keyboard data
-source("Feature_Engineering/keyboard_features/helper/keyboard_extract_liwc.R")
-source("Feature_Engineering/keyboard_features/helper/keyboard_extract_sentiment.R")
-source("Feature_Engineering/keyboard_features/helper/keyboard_extract_emoji.R")
-source("Feature_Engineering/keyboard_features/helper/keyboard_extract_emoticons.R")
-source("Feature_Engineering/keyboard_features/extract_keyboard_features.R")
-source("Feature_Engineering/keyboard_features/keyboard_preprocessing.R")
+source("code/data_processing/keyboard_features/helper/keyboard_extract_liwc.R")
+source("code/data_processing/keyboard_features/helper/keyboard_extract_sentiment.R")
+source("code/data_processing/keyboard_features/helper/keyboard_extract_emoji.R")
+source("code/data_processing/keyboard_features/helper/keyboard_extract_emoticons.R")
+source("code/data_processing/keyboard_features/extract_keyboard_features.R")
+source("code/data_processing/keyboard_features/keyboard_preprocessing.R")
 
 ## connect to databases in which the keyboard and experience sampling data are stored
 
@@ -64,10 +64,6 @@ keyboard = dbConnect(
   host = 'mc-ibt01.unisg.ch',
   port = 3306,
   dbname = "researchime")
-
-# get overview of tables in data bases 
-DBI::dbListTables(phonestudy)
-DBI::dbListTables(keyboard)
 
 ## Load experience sampling data
 

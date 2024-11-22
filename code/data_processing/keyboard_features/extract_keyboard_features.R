@@ -157,12 +157,13 @@ extract_keyboard_features = function(keyboard_data,
       
       df_liwc <- keyboard_data_window %>%
         group_by_at({{window_identifier}}) %>%
-        summarise(across(all_of(liwc_vars), list(
+        reframe(across(all_of(liwc_vars), 
+                       list(          
           avg = ~ mean(.x, na.rm = TRUE),
           var = ~ sd(.x, na.rm = TRUE),
           min = ~ min(.x, na.rm = TRUE),
           max = ~ max(.x, na.rm = TRUE)
-        )))
+        ), .names = "{fn}_{col}")) 
       
       df_dic = left_join(df_dic, df_liwc, by = window_identifier) # join to dic df
       
@@ -202,15 +203,15 @@ extract_keyboard_features = function(keyboard_data,
       
       df_singleemoticon <- keyboard_data_window %>%
         group_by_at({{window_identifier}}) %>%
-        summarise(across(all_of(emoticon_vars), list(
+        reframe(across(all_of(emoticon_vars), 
+                       list(
           avg = ~ mean(.x, na.rm = TRUE),
           var = ~ sd(.x, na.rm = TRUE),
           min = ~ min(.x, na.rm = TRUE),
           max = ~ max(.x, na.rm = TRUE)
-        )))
+        ), .names = "{fn}_{col}")) 
       
       df_emoticon = left_join(df_emoticon, df_singleemoticon, by = window_identifier) # join to dic df
-      
       
       ## emoji
       
@@ -255,12 +256,13 @@ extract_keyboard_features = function(keyboard_data,
       
       df_singleemoji <- keyboard_data_window %>%
         group_by_at({{window_identifier}}) %>%
-        summarise(across(all_of(emoji_vars), list(
+        reframe(across(all_of(emoji_vars), 
+                list(
           avg = ~ mean(.x, na.rm = TRUE),
           var = ~ sd(.x, na.rm = TRUE),
           min = ~ if (all(is.na(.x))) NA_real_ else min(.x, na.rm = TRUE),
           max = ~ if (all(is.na(.x))) NA_real_ else max(.x, na.rm = TRUE)
-        )))
+        ), .names = "{fn}_{col}")) 
       
       df_emoji = left_join(df_emoji, df_singleemoji, by = window_identifier) # join to dic df
     

@@ -1,9 +1,9 @@
 ### PREPROCESSING AND FEATURE EXTRACTION ###
 
 # load ema data
-ema_data = readRDS("data/results/ema_data.rds")
-ema_day = readRDS("data/results/ema_day.rds")
-ema_week = readRDS("data/results/ema_week.rds")
+ema_data = readRDS("data/ema/ema_data.rds")
+ema_day = readRDS("data/ema/ema_day.rds")
+ema_week = readRDS("data/ema/ema_week.rds")
 
 # get files names of user with keyboard data
 file_names = list.files(path = "/home/rstudio/data/ps_keyboard", full.names = T)
@@ -54,46 +54,46 @@ for (user in users) {
     keyboard_features_es = extract_keyboard_features(keyboard_data_es, "es_questionnaire_id", "all", 100)
 
     if(nrow(keyboard_features_es) > 0){
-      write.csv2(keyboard_features_es, paste0("data/results_temp/keyboard/es/", user, ".csv"), row.names = FALSE)
+      saveRDS(keyboard_features_es, paste0("data/results_temp/moment/", user, ".rds"))
     }
 
-    # # days in es period 
-    # keyboard_data_esdays <- keyboard_data %>% filter(date %in% ema_day[ema_day$user_id == user, "date"]$date) # filter keyboard_data for days with es data 
-    # 
-    # keyboard_features_day = extract_keyboard_features(keyboard_data_esdays, "date", "all", 100)
-    # 
-    # if(nrow(keyboard_features_day) > 0){
-    #   write.csv2(keyboard_features_day, paste0("data/results_temp/keyboard/day/", user, ".csv"), row.names = FALSE)
-    # }
-    # 
-    # # weeks in es period 
-    # keyboard_data_esweeks <- keyboard_data %>% filter(week %in% ema_week[ema_week$user_id == user, "week"]$week) # filter keyboard_data for weeks with es data 
-    # 
-    # keyboard_features_week = extract_keyboard_features(keyboard_data_esweeks,  "week", "all", 100)
-    # 
-    # if(nrow(keyboard_features_week) > 0){
-    #   write.csv2(keyboard_features_week, paste0("data/results_temp/keyboard/week/", user, ".csv"), row.names = FALSE)
-    # }
-    # 
+    # days in es period
+    keyboard_data_esdays <- keyboard_data %>% filter(date %in% ema_day[ema_day$user_id == user, "date"]$date) # filter keyboard_data for days with es data
+
+    keyboard_features_day = extract_keyboard_features(keyboard_data_esdays, "date", "all", 100)
+
+    if(nrow(keyboard_features_day) > 0){
+      saveRDS(keyboard_features_day, paste0("data/results_temp/day/", user, ".rds"))
+    }
+
+    # weeks in es period
+    keyboard_data_esweeks <- keyboard_data %>% filter(week %in% ema_week[ema_week$user_id == user, "week"]$week) # filter keyboard_data for weeks with es data
+
+    keyboard_features_week = extract_keyboard_features(keyboard_data_esweeks,  "week", "all", 100)
+
+    if(nrow(keyboard_features_week) > 0){
+      saveRDS(keyboard_features_week, paste0("data/results_temp/week/", user, ".rds"))
+    }
+
     # all produced text during study period
     keyboard_features = extract_keyboard_features(keyboard_data, "user_uuid", "all", 100)
 
     if(nrow(keyboard_features) > 0){
-      write.csv2(keyboard_features, paste0("data/results_temp/keyboard/all/all/", user, ".csv"), row.names = FALSE)
+      saveRDS(keyboard_features,  paste0("data/results_temp/all/", user, ".rds"))
     }
 
     # all produced text during study period - private communication
     keyboard_features_private = extract_keyboard_features(keyboard_data, "user_uuid", "private", 100)
 
     if(nrow(keyboard_features_private) > 0){
-      write.csv2(keyboard_features_private, paste0("data/results_temp/keyboard/all/private/", user, ".csv"), row.names = FALSE)
+      saveRDS(keyboard_features_private, paste0("data/results_temp/all_private/", user, ".rds"))
     }
 
     # all produced text during study period - public communication
     keyboard_features_public = extract_keyboard_features(keyboard_data, "user_uuid", "public", 100)
 
     if(nrow(keyboard_features_public) > 0){
-      write.csv2(keyboard_features_public, paste0("data/results_temp/keyboard/all/public/", user, ".csv"), row.names = FALSE)
+      saveRDS(keyboard_features_public, paste0("data/results_temp/all_public/", user, ".rds"))
     }
     
     t2 = Sys.time()
