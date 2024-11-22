@@ -163,7 +163,7 @@ extract_keyboard_features = function(keyboard_data,
           var = ~ sd(.x, na.rm = TRUE),
           min = ~ min(.x, na.rm = TRUE),
           max = ~ max(.x, na.rm = TRUE)
-        ), .names = "{fn}_{col}")) 
+        ), .names = "{col}_{fn}")) 
       
       df_dic = left_join(df_dic, df_liwc, by = window_identifier) # join to dic df
       
@@ -209,7 +209,7 @@ extract_keyboard_features = function(keyboard_data,
           var = ~ sd(.x, na.rm = TRUE),
           min = ~ min(.x, na.rm = TRUE),
           max = ~ max(.x, na.rm = TRUE)
-        ), .names = "{fn}_{col}")) 
+        ), .names = "{col}_{fn}")) 
       
       df_emoticon = left_join(df_emoticon, df_singleemoticon, by = window_identifier) # join to dic df
       
@@ -262,7 +262,7 @@ extract_keyboard_features = function(keyboard_data,
           var = ~ sd(.x, na.rm = TRUE),
           min = ~ if (all(is.na(.x))) NA_real_ else min(.x, na.rm = TRUE),
           max = ~ if (all(is.na(.x))) NA_real_ else max(.x, na.rm = TRUE)
-        ), .names = "{fn}_{col}")) 
+        ), .names = "{col}_{fn}")) 
       
       df_emoji = left_join(df_emoji, df_singleemoji, by = window_identifier) # join to dic df
     
