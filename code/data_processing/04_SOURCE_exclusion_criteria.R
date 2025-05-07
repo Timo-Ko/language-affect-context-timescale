@@ -1,13 +1,13 @@
 #### APPLY EXCLUSION CRITERIA TO KEYBOARD AND AFFECT DATA ####
 
 # load data sets
-keyboard_data_moment_ema = readRDS("data/results/raw/keyboard_data_moment_ema.rds")
-keyboard_data_day_ema = readRDS("data/results/raw/keyboard_data_day_ema.rds")
-keyboard_data_week_ema = readRDS("data/results/raw/keyboard_data_week_ema.rds")
+keyboard_data_moment_ema = readRDS("data/results/keyboard_data_moment_ema.rds")
+keyboard_data_day_ema = readRDS("data/results/keyboard_data_day_ema.rds")
+keyboard_data_week_ema = readRDS("data/results/keyboard_data_week_ema.rds")
 
-keyboard_data_trait = readRDS("data/results/raw/keyboard_data_trait.rds")
-keyboard_data_trait_private = readRDS("data/results/raw/keyboard_data_trait_private.rds")
-keyboard_data_trait_public = readRDS("data/results/raw/keyboard_data_trait_public.rds")
+keyboard_data_trait = readRDS("data/results/keyboard_data_trait.rds")
+keyboard_data_trait_private = readRDS("data/results/keyboard_data_trait_private.rds")
+keyboard_data_trait_public = readRDS("data/results/keyboard_data_trait_public.rds")
 
 ## fix smartphone changers
 # 

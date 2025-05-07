@@ -5,78 +5,59 @@ install.packages(setdiff(packages, rownames(installed.packages())))
 lapply(packages, library, character.only = TRUE)
 
 # load function for target independet preprocessing
-source("r_code/functions/target_independent_preproc.R")
+source("Analysis/ML_Analyses/target_independent_preproc.R")
 
 # load data
 
 # trait
-affect_language <- readRDS(file="data/affect_language_features/affect_language_500.RData") 
-affect_language_private <- readRDS(file="data/affect_language_features/affect_language_private_500.RData") 
-affect_language_public <- readRDS(file="data/affect_language_features/affect_language_public_500.RData") 
-
-# month
-#affect_language_month <- readRDS(file="data/affect_language_month.RData") 
+keyboard_data_trait <- readRDS(file="data/results/cleaned/keyboard_data_trait_cleaned.rds") 
+keyboard_data_trait_private <- readRDS(file="data/results/cleaned/keyboard_data_trait_private_cleaned.rds") 
+keyboard_data_trait_public <- readRDS(file="data/results/cleaned/keyboard_data_trait_public_cleaned.rds") 
 
 # week
-affect_language_es_week <- readRDS(file="data/affect_language_features/affect_language_es_week_500.RData") 
+keyboard_data_week_ema <- readRDS(file="data/results/cleaned/keyboard_data_week_ema_cleaned.rds") 
 
 # day
-affect_language_es_day <- readRDS(file="data/affect_language_features/affect_language_es_day_100.RData") 
+keyboard_data_day_ema <- readRDS(file="data/results/cleaned/keyboard_data_day_ema_cleaned.rds") 
 
 # moment
-affect_language_es_threehrs <- readRDS(file="data/affect_language_features/affect_language_es_threehrs_100.RData") 
-
-#### REMOVE UNNEEDED COLUMNS ####
-
-affect_language_es_threehrs$threehrs_lower <- NULL
-affect_language_es_threehrs$threehrs_upper <- NULL
-affect_language_es_threehrs$onehr_lower <- NULL
-affect_language_es_threehrs$onehr_upper <- NULL
+keyboard_data_moment_ema <- readRDS(file="data/results/cleaned/keyboard_data_moment_ema_cleaned.rds") 
 
 #### TARGET INDEPENDENT PREPROCESSING ####
 
 # define the columns that are not features (here preprocessing is not applied)
-no_feature_columns = c("p_0001", "Demo_A1", "Demo_GE1","pa_panas", "na_panas", "typing_sessions_count", "amount_words_typed_total")
+no_feature_columns_trait = c("user_uuid", "age", "gender","pa_panas", "na_panas", "session_count")
 
-no_feature_columns_month = c("p_0001", "wave_id", "datetime", "fourweeks_start", "Demo_A1", "Demo_GE1","va_panava", "pa_panava", "na_panava", "typing_sessions_count", "amount_words_typed_total")
+no_feature_columns_ema_week = c("user_id", "week", "es_count_week", "es_days_week", "valence_week", "arousal_week", "age", "gender", "session_count")
 
-no_feature_columns_es_week = c("user_id", "week", "es_days_week", "es_count_week", "Demo_A1", "Demo_GE1", "valence_week", "arousal_week", "typing_sessions_count", "amount_words_typed_total")
+no_feature_columns_ema_day = c("user_id", "date", "es_count_day", "valence_day", "arousal_day", "age", "gender", "session_count")
 
-no_feature_columns_es_day = c("user_id", "date", "es_count_day", "Demo_A1", "Demo_GE1", "valence_day", "arousal_day", "typing_sessions_count", "amount_words_typed_total")
-
-no_feature_columns_es_threehrs = c("user_id", "Demo_A1", "Demo_GE1", "e_s_questionnaire_id", "questionnaireStartedTimestamp", "pa_panas", "na_panas", "valence" , "md_valence", "diff_valence", "arousal", "md_arousal", "diff_arousal", "typing_sessions_count", "amount_words_typed_total")
+no_feature_columns_ema_moment = c("user_id", "age", "gender", "e_s_questionnaire_id", "questionnaireStartedTimestamp_corrected", "valence" , "valence_avg", "valence_diff", "arousal", "arousal_avg", "arousal_diff", "session_count")
 
 # apply functions for target-independent preprocessing
-affect_language_ml <- target_independent_preproc(affect_language, no_feature_columns)
-affect_language_private_ml <- target_independent_preproc(affect_language_private, no_feature_columns)
-affect_language_public_ml <- target_independent_preproc(affect_language_public, no_feature_columns)
 
-#affect_language_month_ml <- target_independent_preproc(affect_language_month, no_feature_columns_month)
+keyboard_data_trait_ml <- target_independent_preproc(keyboard_data_trait, no_feature_columns_trait)
+keyboard_data_trait_private_ml <- target_independent_preproc(keyboard_data_trait_private, no_feature_columns_trait)
+keyboard_data_trait_public_ml <- target_independent_preproc(keyboard_data_trait_public, no_feature_columns_trait)
 
-affect_language_es_week_ml <- target_independent_preproc(affect_language_es_week, no_feature_columns_es_week)
-
-affect_language_es_day_ml <- target_independent_preproc(affect_language_es_day, no_feature_columns_es_day)
-
-affect_language_es_threehrs_ml <- target_independent_preproc(affect_language_es_threehrs, no_feature_columns_es_threehrs)
+keyboard_data_week_ema_ml <- target_independent_preproc(keyboard_data_week_ema, no_feature_columns_ema_week)
+keyboard_data_day_ema_ml <- target_independent_preproc(keyboard_data_day_ema, no_feature_columns_ema_day)
+keyboard_data_moment_ema_ml <- target_independent_preproc(keyboard_data_moment_ema, no_feature_columns_ema_moment)
 
 # save data
 
 # trait
-saveRDS(affect_language_ml, "data/affect_language_features/affect_language_ml.RData")
-saveRDS(affect_language_private_ml, "data/affect_language_features/affect_language_private_ml.RData")
-saveRDS(affect_language_public_ml, "data/affect_language_features/affect_language_public_ml.RData")
-
-# month
-#affect_language_month_ml  <- saveRDS(affect_language_month_ml, "data/affect_language_month_ml.RData")
+saveRDS(keyboard_data_trait_ml, "data/results/ml/keyboard_data_trait_ml.rds")
+saveRDS(keyboard_data_trait_private_ml, "data/results/ml/keyboard_data_trait_private_ml.rds")
+saveRDS(keyboard_data_trait_public_ml, "data/results/ml/keyboard_data_trait_public_ml.rds")
 
 # week
-saveRDS(affect_language_es_week_ml, "data/affect_language_es_week_ml.RData")
+saveRDS(keyboard_data_week_ema_ml, "data/results/ml/keyboard_data_week_ema_ml.rds")
 
 # day
-saveRDS(affect_language_es_day_ml, "data/affect_language_es_day_ml.RData")
+saveRDS(keyboard_data_day_ema_ml, "data/results/ml/keyboard_data_day_ema_ml.rds")
 
 # moment
-affect_language_es_threehrs_ml  <- saveRDS(affect_language_es_threehrs_ml, "data/affect_language_es_threehrs_ml.RData")
-#affect_language_es_onehr_ml  <- readRDS("data/affect_language_es_onehr.RData")
+saveRDS(keyboard_data_moment_ema_ml, "data/results/ml/keyboard_data_moment_ema_ml.rds")
 
 # FINISH

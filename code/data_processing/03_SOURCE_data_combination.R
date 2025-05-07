@@ -1,48 +1,50 @@
 ### COMBINE EXTRACTED KEYBOARD EATURES WITH AFFECT DATA ###
 
 ## Load demographics data from wave 1 
-wave1 = read.csv2("data/raw/wave1_2021_02_19.csv")
+wave1 = read.csv2("data/helper/wave1_2021_02_19.csv")
 demographics = wave1 %>% dplyr::select(p_0001, Demo_A1, Demo_GE1)
 colnames(demographics) = c("user_id", "age", "gender")
 demographics <- demographics[!duplicated(demographics), ] # remove duplicates
+demographics = demographics %>% mutate(user_id = as.character(user_id))
 
 ## load panas data
-panas_df = readRDS("data/results/panas.RData")
+panas_df = readRDS("data/helper/panas.RData")
 names(panas_df)[names(panas_df) == "p_0001"] <- "user_uuid" # rename column
+panas_df = panas_df %>% mutate(user_uuid = as.character(user_uuid))
 
 ## load ema data 
-ema_data = readRDS("data/results/ema/ema_data.rds")
-ema_day = readRDS("data/results/ema/ema_day.rds")
-ema_week = readRDS("data/results/ema/ema_week.rds")
+ema_data = readRDS("data/ema/ema_data.rds")
+ema_day = readRDS("data/ema/ema_day.rds")
+ema_week = readRDS("data/ema/ema_week.rds")
 
 ## load all keyboard data for different es time windows 
 keyboard_data_moment <- data.frame() # initialize df
 keyboard_data_day <- data.frame() # initialize df
 keyboard_data_week <- data.frame() # initialize df
 
-# es 
-for(file in list.files("data/results_temp/keyboard/es/")){ # iterate through files
-  df1 = read.csv2(paste0("data/results_temp/keyboard/es/", file)) # load user df
+# es moment
+for(file in list.files("data/results_temp/moment/")){ # iterate through files
+  df1 = readRDS(paste0("data/results_temp/moment/", file)) # load user df
   df1 <- df1 %>%
-    mutate(user_id = as.integer(sub("\\.csv$", "", file))) %>%
+    mutate(user_id = as.integer(sub("\\.rds$", "", file))) %>%
     select(user_id, everything()) # add user_id
   keyboard_data_moment = dplyr::bind_rows(keyboard_data_moment, df1) # append user data
 }
 
 # es day
-for(file in list.files("data/results_temp/keyboard/day")){ # iterate through files
-  df1 = read.csv2(paste0("data/results_temp/keyboard/day/", file)) # load user df
+for(file in list.files("data/results_temp/day")){ # iterate through files
+  df1 = readRDS(paste0("data/results_temp/day/", file)) # load user df
   df1 <- df1 %>%
-    mutate(user_id = as.integer(sub("\\.csv$", "", file))) %>%
+    mutate(user_id = as.integer(sub("\\.rds$", "", file))) %>%
     select(user_id, everything()) # add user_id
   keyboard_data_day = dplyr::bind_rows(keyboard_data_day, df1) # append user data
 }
 
 # es week
-for(file in list.files("data/results_temp/keyboard/week")){ # iterate through files
-  df1 = read.csv2(paste0("data/results_temp/keyboard/week/", file)) # load user df
+for(file in list.files("data/results_temp/week")){ # iterate through files
+  df1 = readRDS(paste0("data/results_temp/week/", file)) # load user df
   df1 <- df1 %>%
-    mutate(user_id = as.integer(sub("\\.csv$", "", file))) %>%
+    mutate(user_id = as.integer(sub("\\.rds$", "", file))) %>%
     select(user_id, everything()) # add user_id
   keyboard_data_week = dplyr::bind_rows(keyboard_data_week, df1) # append user data
 }
@@ -56,9 +58,9 @@ keyboard_data_day_ema = left_join(ema_day, demographics, by = "user_id", relatio
 keyboard_data_week_ema = left_join(ema_week, demographics, by = "user_id", relationship = "many-to-one") %>% inner_join(keyboard_data_week, by = c ("week", "user_id"))
 
 # save combined data sets 
-saveRDS(keyboard_data_moment_ema, "data/results/raw/keyboard_data_moment_ema.rds") # es moment 
-saveRDS(keyboard_data_day_ema, "data/results/raw/keyboard_data_day_ema.rds") # es day
-saveRDS(keyboard_data_week_ema, "data/results/raw/keyboard_data_week_ema.rds") # es week
+saveRDS(keyboard_data_moment_ema, "data/results/keyboard_data_moment_ema.rds") # es moment 
+saveRDS(keyboard_data_day_ema, "data/results/keyboard_data_day_ema.rds") # es day
+saveRDS(keyboard_data_week_ema, "data/results/keyboard_data_week_ema.rds") # es week
 
 ## combine all keyboard data with trait affect (panas) data
 
@@ -68,18 +70,18 @@ keyboard_data_private = data.frame()
 keyboard_data_public = data.frame()
 
 # fill dfs
-for (file.within in list.files(paste0("data/results_temp/keyboard/all/all"))) {
-  df1 = read.csv2(paste0("data/results_temp/keyboard/all/all/", file.within)) # load user df
+for (file.within in list.files(paste0("data/results_temp/all"))) {
+  df1 = readRDS(paste0("data/results_temp/all/", file.within)) # load user df
   keyboard_data = dplyr::bind_rows(keyboard_data, df1) # append user df
 }
 
-for (file.within in list.files(paste0("data/results_temp/keyboard/all/private"))) {
-  df1 = read.csv2(paste0("data/results_temp/keyboard/all/private/", file.within)) # load user df
+for (file.within in list.files(paste0("data/results_temp/all_private"))) {
+  df1 = readRDS(paste0("data/results_temp/all_private/", file.within)) # load user df
   keyboard_data_private = dplyr::bind_rows(keyboard_data_private, df1) # append user df
 }
 
-for (file.within in list.files(paste0("data/results_temp/keyboard/all/public"))) {
-  df1 = read.csv2(paste0("data/results_temp/keyboard/all/public/", file.within)) # load user df
+for (file.within in list.files(paste0("data/results_temp/all_public"))) {
+  df1 = readRDS(paste0("data/results_temp/all_public/", file.within)) # load user df
   keyboard_data_public = dplyr::bind_rows(keyboard_data_public, df1) # append user df
 }
 
@@ -97,11 +99,11 @@ keyboard_data_trait_public = inner_join(panas_df, keyboard_data_public, by = "us
   dplyr::select(user_uuid, age, gender, pa_panas, na_panas, everything())
 
 # save combined data sets 
-saveRDS(keyboard_data, "data/results/raw/keyboard_data.rds") 
+saveRDS(keyboard_data, "data/results/keyboard_data.rds") 
 
-saveRDS(keyboard_data_trait, "data/results/raw/keyboard_data_trait.rds") 
-saveRDS(keyboard_data_trait_private, "data/results/raw/keyboard_data_trait_private.rds") 
-saveRDS(keyboard_data_trait_public, "data/results/raw/keyboard_data_trait_public.rds") 
+saveRDS(keyboard_data_trait, "data/results/keyboard_data_trait.rds") 
+saveRDS(keyboard_data_trait_private, "data/results/keyboard_data_trait_private.rds") 
+saveRDS(keyboard_data_trait_public, "data/results/keyboard_data_trait_public.rds") 
 
 # ## delete temporary files 
 # unlink("data/results/RDS_subsets", recursive=TRUE)
