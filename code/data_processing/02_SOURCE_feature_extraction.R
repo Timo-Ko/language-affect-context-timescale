@@ -120,4 +120,37 @@ for (user in users) {
 # apply keyboard feature extraction function
 #lapply(users, keyboard_feature_extraction)
 
+############ Execute Feature Extraction Function #############
+
+
+library(doParallel)
+library(foreach)
+library(iterators)
+library(tidyverse)
+
+# Setup parallelization
+n_cores = 2
+doParallel::registerDoParallel(cores = n_cores)
+
+# Start feature extraction for each user
+# Load the packages for parallelization
+
+
+foreach(
+  iter_id = iter(users, by = "value"),
+  .packages = c("tidyverse"),
+  .errorhandling = "pass"
+) %dopar% {
+  tryCatch({
+    user_feature_extraction(user = iter_id)
+  }, error=function(e) {
+    list(error=toString(e))
+  })
+}
+
+# Stop the parallel backend after completing the tasks
+stopImplicitCluster()
+
+#user_feature_extraction(user) # single feature extraction
+
 ### Continue with 03_SOURCE_feature_combination.R ###
