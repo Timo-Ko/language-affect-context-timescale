@@ -8,7 +8,7 @@
 #' @param filter_var indicate if a app/ action filter should be applied ("all", "private", "public"), these can be easily adapted
 #' @param min_words minimum number of words typer per given time window
 #' @return dataset with summarized keyboard features
-#' @example keyboard-features(255,keyboard_data, "user_uuid", "all")
+#' @example keyboard-features(255,keyboard_data, "user_uuid", "all", 100)
 #' @export
 
 extract_keyboard_features = function(keyboard_data,
@@ -16,9 +16,9 @@ extract_keyboard_features = function(keyboard_data,
                              filter_var,
                              min_words) {
   
-    # keep sessions where any text was produced
+    # keep sessions where the dictionaries captured min one word 
     keyboard_data  <- keyboard_data %>%
-    dplyr::filter(words_typed >= 1)
+    dplyr::filter(words_liwc_match > 0 | count_sentiment_match > 0 )
   
     # apply app or action filter here (if desired)
     
@@ -73,34 +73,62 @@ extract_keyboard_features = function(keyboard_data,
       df_dic = keyboard_data_window %>% 
         dplyr::group_by_at({{window_identifier}}) %>%
         dplyr::summarise(
+          
+          # overall sentiment match rate
           wordsentiment_match_rate = sum(count_sentiment_match, na.rm = TRUE) / sum(words_typed, na.rm = TRUE),
          
-          # sentiment per typed words
-          wordsentiment_mean = mean(session_sentiment_avg, na.rm = TRUE),
-          wordsentiment_sd = sd(session_sentiment_avg, na.rm = TRUE),
-          wordsentiment_min = min(session_sentiment_avg, na.rm = TRUE),
-          wordsentiment_max = max(session_sentiment_avg, na.rm = TRUE),
+          # word sentiment of all text aggregated for time window
+          wordsentiment_mean =
+            mean(unlist(sentiment_scores), na.rm = TRUE),
           
-          liwc_match_rate = sum(words_liwc_match, na.rm = TRUE) / sum(words_typed, na.rm = TRUE),
+          # word sentiment - on typing session basis
+          wordsentiment_session_mean = mean(word_sentiment_md, na.rm = TRUE),
+          wordsentiment_session_sd = sd(word_sentiment_md, na.rm = TRUE),
+          wordsentiment_session_min = min(word_sentiment_md, na.rm = TRUE),
+          wordsentiment_session_max = max(word_sentiment_md, na.rm = TRUE),
+          
           .groups = "drop"  # Ungroup the result
-        ) %>% distinct({{window_identifier}}, .keep_all = TRUE) %>%
-        select(-last_col())
+        ) 
       
       # liwc categories
       
       liwc_vars = liwc.names$LIWC.name
       
-      df_liwc <- keyboard_data_window %>%
-        group_by_at({{window_identifier}}) %>%
-        reframe(across(all_of(liwc_vars), 
-                       list(          
-          mean = ~ mean(.x, na.rm = TRUE),
-          sd = ~ sd(.x, na.rm = TRUE),
-          min = ~ min(.x, na.rm = TRUE),
-          max = ~ max(.x, na.rm = TRUE)
-        ), .names = "{col}_{fn}")) 
+      df_liwc <- keyboard_data_window %>% 
+        group_by_at({{window_identifier}}) %>% 
+        dplyr::summarise(
+
+          # overall LIWC match rate for all aggregated text
+          liwc_match_rate = sum(words_liwc_match, na.rm = TRUE) / 
+            sum(words_typed,      na.rm = TRUE),
+          
+          # 1) share of each LIWC category in all typed words of the window
+          across(all_of(liwc_vars),
+                 ~ sum(.x, na.rm = TRUE) / sum(words_typed, na.rm = TRUE),
+                 .names = "{.col}_share"),
+          
+          # overall LIWC match rate across sessions
+          liwc_match_rate_sessions = mean(
+            ifelse(words_typed > 0, words_liwc_match / words_typed, NA_real_),
+            na.rm = TRUE
+          ),
+          
+          # 2) session-level descriptors of the per-session share
+          across(all_of(liwc_vars), 
+                 list(
+                   mean = ~ mean(.x / words_typed, na.rm = TRUE),
+                   sd   = ~  sd (.x / words_typed, na.rm = TRUE),
+                   min  = ~  min(.x / words_typed, na.rm = TRUE),
+                   max  = ~  max(.x / words_typed, na.rm = TRUE)
+                 ),
+                 .names = "{.col}_{fn}"),
+          
+          .groups = "drop"
+        )
+      
       
       df_keyboard_window = left_join(df_dic, df_liwc, by = window_identifier) # join to dic df
+      
       
       # Append df_keyboard_window to df_keyboard if it contains data
       if (exists("df_keyboard_window") && nrow(df_keyboard_window) > 0) {
@@ -112,8 +140,22 @@ extract_keyboard_features = function(keyboard_data,
       
     } # close loop across time windows 
       
-    # replace Inf values with NA (these occur when numbers are divided by zero)
-    df_keyboard <- as.data.frame(lapply(df_keyboard, function(x) ifelse(is.infinite(x), NA, x)))
+    df_keyboard <- df_keyboard %>% 
+      mutate(
+        across(everything(), ~ {
+          if (is.numeric(.x)) {
+            y <- .x
+            y[is.na(y)]       <- 0      # 1) NA  -> 0
+            y[is.nan(y)]      <- NA     # 2) NaN -> NA
+            y[is.infinite(y)] <- 0      # 3) Inf/-Inf -> 0
+            y
+          } else {
+            .x                 # leave non-numeric columns unchanged
+          }
+        })
+      ) %>% 
+      rename_with(tolower)       # lower-case all column names
+    
     
   return(df_keyboard) # return the final df containing language features per user for given time window (one row is one time window per user , i.e. there can be multiple rows per user)
   

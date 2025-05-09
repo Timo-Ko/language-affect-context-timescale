@@ -16,8 +16,9 @@ file_names = list.files(path = "/home/rstudio/data/ps_keyboard", full.names = T)
 # get user ids
 users = sub("\\.rds$", "", basename(file_names))
 
-# create feature extraction function
-for (user in users) {
+############ Define Feature Extraction Function #############
+
+keyboard_feature_extraction = function(user) {
 
   tryCatch({
     
@@ -29,11 +30,12 @@ for (user in users) {
     # Step 1: Pull keyboard data for that user 
     keyboard_data <- readRDS(paste0("/home/rstudio/data/ps_keyboard/", user, ".rds"))
     
-    if (sum(keyboard_data$words_typed, na.rm =T) < 1) {
-      
-      print(paste(user, "did not type any words"))
-      next # if no word events have been logged, skip to next user 
-      
+    if (sum(keyboard_data$words_typed, na.rm = TRUE) < 1) {
+      message(paste(user, "did not type any words"))
+      write(paste0(Sys.time(), ": SKIPPED: user ", user,
+                   " – no keyboard events"), 
+            file = "data/errorlog_extraction.txt", append = TRUE)
+      return(invisible(NULL))        # <-- early exit, no error
     }
     
     # Step 2: Label esm moments in keyboard data 
@@ -115,13 +117,14 @@ for (user in users) {
     write(paste0(Sys.time(),": ERROR: ",conditionMessage(e)," --> Current user is: ", user), file = "data/errorlog_extraction.txt", append = TRUE)
   })
   
-} # end of loop
+} # end of function
 
-# apply keyboard feature extraction function
-#lapply(users, keyboard_feature_extraction)
 
 ############ Execute Feature Extraction Function #############
 
+# keyboard_feature_extraction(user) # test single feature extraction
+
+# Load the packages for parallelization
 
 library(doParallel)
 library(foreach)
@@ -133,8 +136,6 @@ n_cores = 2
 doParallel::registerDoParallel(cores = n_cores)
 
 # Start feature extraction for each user
-# Load the packages for parallelization
-
 
 foreach(
   iter_id = iter(users, by = "value"),
@@ -142,7 +143,7 @@ foreach(
   .errorhandling = "pass"
 ) %dopar% {
   tryCatch({
-    user_feature_extraction(user = iter_id)
+    keyboard_feature_extraction(user = iter_id)
   }, error=function(e) {
     list(error=toString(e))
   })
@@ -150,7 +151,5 @@ foreach(
 
 # Stop the parallel backend after completing the tasks
 stopImplicitCluster()
-
-#user_feature_extraction(user) # single feature extraction
 
 ### Continue with 03_SOURCE_feature_combination.R ###

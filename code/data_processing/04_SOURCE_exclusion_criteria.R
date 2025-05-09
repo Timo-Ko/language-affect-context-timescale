@@ -50,34 +50,34 @@ keyboard_data_trait_public = readRDS("data/results/keyboard_data_trait_public.rd
 # ema_data <- ema_data[ema_data$user_id %in% variancees_user ,] # keep only users with variance in their affect responses
 
 
-## drop rare emoji
-
-# Calculate the proportion of participants with non-zero/non-NA usage for each emoji 
-emoji_cols <- paste0(emoji_df$variable_name, "_avg")
-
-proportion_emoji_used <- sapply(keyboard_data[emoji_cols], function(column) {
-  sum(!is.na(column) & column != 0) / nrow(keyboard_data)
-})
-
-# Convert proportion_emoji_used to a data frame
-proportion_emoji_df <- data.frame(
-  variable_name = sub("_avg", "", names(proportion_emoji_used)),
-  proportion_used = proportion_emoji_used
-)
-
-# Join with emoji_df
-emoji_df_extended <- merge(emoji_df, proportion_emoji_df, by = "variable_name", all.x = TRUE)
-
-# Filter for emojis used by less than 5% of users
-rare_emoji <- emoji_df_extended[emoji_df_extended$proportion_used < 0.05, ]$variable_name
-
-# Step 2: Create new entries with "_var", "_min", and "_max" suffixes
-rare_emoji_expanded <- lapply(rare_emoji, function(x) {
-  c(paste0(x, "_avg"), paste0(x, "_var"), paste0(x, "_min"), paste0(x, "_max"))
-})
-
-# Step 3: Combine into a single vector
-expanded_emoji <- unlist(rare_emoji_expanded)
+# ## drop rare emoji
+# 
+# # Calculate the proportion of participants with non-zero/non-NA usage for each emoji 
+# emoji_cols <- paste0(emoji_df$variable_name, "_avg")
+# 
+# proportion_emoji_used <- sapply(keyboard_data[emoji_cols], function(column) {
+#   sum(!is.na(column) & column != 0) / nrow(keyboard_data)
+# })
+# 
+# # Convert proportion_emoji_used to a data frame
+# proportion_emoji_df <- data.frame(
+#   variable_name = sub("_avg", "", names(proportion_emoji_used)),
+#   proportion_used = proportion_emoji_used
+# )
+# 
+# # Join with emoji_df
+# emoji_df_extended <- merge(emoji_df, proportion_emoji_df, by = "variable_name", all.x = TRUE)
+# 
+# # Filter for emojis used by less than 5% of users
+# rare_emoji <- emoji_df_extended[emoji_df_extended$proportion_used < 0.05, ]$variable_name
+# 
+# # Step 2: Create new entries with "_var", "_min", and "_max" suffixes
+# rare_emoji_expanded <- lapply(rare_emoji, function(x) {
+#   c(paste0(x, "_avg"), paste0(x, "_var"), paste0(x, "_min"), paste0(x, "_max"))
+# })
+# 
+# # Step 3: Combine into a single vector
+# expanded_emoji <- unlist(rare_emoji_expanded)
 
 # Remove these rarely used emoji columns from the dataframes
 keyboard_data_moment_ema_cleaned  <- keyboard_data_moment_ema [ , !(names(keyboard_data_moment_ema ) %in% expanded_emoji)]

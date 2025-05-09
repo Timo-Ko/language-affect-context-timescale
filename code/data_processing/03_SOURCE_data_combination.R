@@ -13,9 +13,9 @@ names(panas_df)[names(panas_df) == "p_0001"] <- "user_uuid" # rename column
 panas_df = panas_df %>% mutate(user_uuid = as.character(user_uuid))
 
 ## load ema data 
-ema_data = readRDS("data/ema/ema_data.rds")
-ema_day = readRDS("data/ema/ema_day.rds")
-ema_week = readRDS("data/ema/ema_week.rds")
+ema_data = readRDS("data/ema/ema_data.rds") %>% mutate(user_id = as.character(user_id))
+ema_day = readRDS("data/ema/ema_day.rds") %>% mutate(user_id = as.character(user_id))
+ema_week = readRDS("data/ema/ema_week.rds") %>% mutate(user_id = as.character(user_id))
 
 ## load all keyboard data for different es time windows 
 keyboard_data_moment <- data.frame() # initialize df
@@ -26,7 +26,7 @@ keyboard_data_week <- data.frame() # initialize df
 for(file in list.files("data/results_temp/moment/")){ # iterate through files
   df1 = readRDS(paste0("data/results_temp/moment/", file)) # load user df
   df1 <- df1 %>%
-    mutate(user_id = as.integer(sub("\\.rds$", "", file))) %>%
+    mutate(user_id = as.character(sub("\\.rds$", "", file))) %>%
     select(user_id, everything()) # add user_id
   keyboard_data_moment = dplyr::bind_rows(keyboard_data_moment, df1) # append user data
 }
@@ -35,7 +35,7 @@ for(file in list.files("data/results_temp/moment/")){ # iterate through files
 for(file in list.files("data/results_temp/day")){ # iterate through files
   df1 = readRDS(paste0("data/results_temp/day/", file)) # load user df
   df1 <- df1 %>%
-    mutate(user_id = as.integer(sub("\\.rds$", "", file))) %>%
+    mutate(user_id = as.character(sub("\\.rds$", "", file))) %>%
     select(user_id, everything()) # add user_id
   keyboard_data_day = dplyr::bind_rows(keyboard_data_day, df1) # append user data
 }
@@ -44,13 +44,14 @@ for(file in list.files("data/results_temp/day")){ # iterate through files
 for(file in list.files("data/results_temp/week")){ # iterate through files
   df1 = readRDS(paste0("data/results_temp/week/", file)) # load user df
   df1 <- df1 %>%
-    mutate(user_id = as.integer(sub("\\.rds$", "", file))) %>%
+    mutate(user_id = as.character(sub("\\.rds$", "", file))) %>%
     select(user_id, everything()) # add user_id
   keyboard_data_week = dplyr::bind_rows(keyboard_data_week, df1) # append user data
 }
 
 # covert date to date format
 keyboard_data_day$date <- as.Date(keyboard_data_day$date, origin = "1970-01-01")
+
 
 # combine keyboard data and ema data and demographics
 keyboard_data_moment_ema = left_join(ema_data, demographics, by = "user_id", relationship = "many-to-one") %>% inner_join(keyboard_data_moment, by = c ("es_questionnaire_id", "user_id"))
