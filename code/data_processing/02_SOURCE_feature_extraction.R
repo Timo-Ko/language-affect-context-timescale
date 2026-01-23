@@ -1,128 +1,104 @@
 ### PREPROCESSING AND FEATURE EXTRACTION ###
 
+library(dplyr)
+library(lubridate)
+
+source("code/data_processing/keyboard_features/extract_keyboard_features_emoji.R")
+source("code/data_processing/helper/ema_labels.R")
+
 # load ema data
-ema_data = readRDS("data/ema/ema_data.rds")
-ema_day = readRDS("data/ema/ema_day.rds")
-ema_week = readRDS("data/ema/ema_week.rds")
+ema_data <- readRDS("data/ema/ema_data.rds")
 
-# get files names of user with keyboard data
-file_names = list.files(path = "/home/rstudio/data/ps_keyboard", full.names = T)
+# load lookup tables (names only; used by extract_keyboard_features)
+emoticons_df <- readRDS("data/helper/emoticons_df.rds")
+emoji_df     <- readRDS("data/helper/emoji_df.rds")
 
-# do some data checks 
-#file_details <- file.info(file_names) # get file infos
+# input files (one .rds per user)
+in_dir     <- "/home/rstudio/data/ps_keyboard"
+file_names <- list.files(path = in_dir, full.names = TRUE)
+users      <- sub("\\.rds$", "", basename(file_names))
 
-#data_list <- lapply(file_names, readRDS) # get list with dfs
-
-# get user ids
-users = sub("\\.rds$", "", basename(file_names))
+# ensure output dirs and log exist
+dir.create("data/results_temp/moment", recursive = TRUE, showWarnings = FALSE)
+dir.create("data/results_temp/all",    recursive = TRUE, showWarnings = FALSE)
+log_file <- "data/errorlog_extraction.txt"
+if (!file.exists(log_file)) file.create(log_file)
 
 ############ Define Feature Extraction Function #############
 
-keyboard_feature_extraction = function(user) {
-
+keyboard_feature_extraction <- function(user) {
   tryCatch({
+    t1 <- Sys.time()
+    message("Starting user ", user)
     
-    t1 = Sys.time()
-  
-    # print info
-    print(paste("Staring with user", user))
+    # ---- Step 1: load keyboard data for user ----
+    fpath <- file.path(in_dir, paste0(user, ".rds"))
+    if (!file.exists(fpath)) {
+      write(paste0(Sys.time(), ": SKIPPED: user ", user, " – file not found: ", fpath),
+            file = log_file, append = TRUE)
+      return(invisible(NULL))
+    }
+    keyboard_data <- readRDS(fpath)
     
-    # Step 1: Pull keyboard data for that user 
-    keyboard_data <- readRDS(paste0("/home/rstudio/data/ps_keyboard/", user, ".rds"))
-    
-    if (sum(keyboard_data$words_typed, na.rm = TRUE) < 1) {
-      message(paste(user, "did not type any words"))
-      write(paste0(Sys.time(), ": SKIPPED: user ", user,
-                   " – no keyboard events"), 
-            file = "data/errorlog_extraction.txt", append = TRUE)
-      return(invisible(NULL))        # <-- early exit, no error
+    # minimal schema guards
+    for (nm in c("emoji_count", "emoticon_count", "words_typed")) {
+      if (!nm %in% names(keyboard_data)) keyboard_data[[nm]] <- 0
     }
     
-    # Step 2: Label esm moments in keyboard data 
-    es_user = ema_data %>% filter(user_id == user) %>% ungroup() # filter out es data from that user
-    
-    if(nrow(es_user) > 0){ # execute this code if there is esm data for that user
-    
-    # label experience sampling snippets in keyboard data (this function assumes already corrected time stamps)
-    keyboard_data = label_ema_in_keyboard(keyboard_data, es_user, 90, 90)  %>% as.data.frame()
-    
-    } else { keyboard_data$es_questionnaire_id = NA }
-    
-    # Step 3: Keyboard feature extraction
-    
-    # es moment
-    keyboard_data_es <- keyboard_data %>% filter(!is.na(es_questionnaire_id)) # filter out sessions rows with corresponding es data
-
-    keyboard_features_es = extract_keyboard_features(keyboard_data_es, "es_questionnaire_id", "all", 100)
-
-    if(nrow(keyboard_features_es) > 0){
-      saveRDS(keyboard_features_es, paste0("data/results_temp/moment/", user, ".rds"))
-    }
-
-    # days in es period
-    keyboard_data_esdays <- keyboard_data %>% filter(date %in% ema_day[ema_day$user_id == user, "date"]$date) # filter keyboard_data for days with es data
-
-    keyboard_features_day = extract_keyboard_features(keyboard_data_esdays, "date", "all", 100)
-
-    if(nrow(keyboard_features_day) > 0){
-      saveRDS(keyboard_features_day, paste0("data/results_temp/day/", user, ".rds"))
-    }
-
-    # weeks in es period
-    keyboard_data_esweeks <- keyboard_data %>% filter(week %in% ema_week[ema_week$user_id == user, "week"]$week) # filter keyboard_data for weeks with es data
-
-    keyboard_features_week = extract_keyboard_features(keyboard_data_esweeks,  "week", "all", 100)
-
-    if(nrow(keyboard_features_week) > 0){
-      saveRDS(keyboard_features_week, paste0("data/results_temp/week/", user, ".rds"))
-    }
-
-    # all produced text during study period
-    keyboard_features = extract_keyboard_features(keyboard_data, "user_uuid", "all", 100)
-
-    if(nrow(keyboard_features) > 0){
-      saveRDS(keyboard_features,  paste0("data/results_temp/all/", user, ".rds"))
-    }
-
-    # all produced text during study period - private communication
-    keyboard_features_private = extract_keyboard_features(keyboard_data, "user_uuid", "private", 100)
-
-    if(nrow(keyboard_features_private) > 0){
-      saveRDS(keyboard_features_private, paste0("data/results_temp/all_private/", user, ".rds"))
-    }
-
-    # all produced text during study period - public communication
-    keyboard_features_public = extract_keyboard_features(keyboard_data, "user_uuid", "public", 100)
-
-    if(nrow(keyboard_features_public) > 0){
-      saveRDS(keyboard_features_public, paste0("data/results_temp/all_public/", user, ".rds"))
+    # skip if no emoji/emoticon at all
+    if (sum(keyboard_data$emoji_count + keyboard_data$emoticon_count, na.rm = TRUE) < 1) {
+      write(paste0(Sys.time(), ": SKIPPED: user ", user, " – no emoji/emoticon usage"),
+            file = log_file, append = TRUE)
+      return(invisible(NULL))
     }
     
-    t2 = Sys.time()
-    processing_time <- round(as.numeric(difftime(t2, t1, units = "mins")),2)
+    # Trait / all-text windows
+    if (!"user_uuid" %in% names(keyboard_data)) keyboard_data$user_uuid <- user
+    keyboard_features <- extract_keyboard_features(keyboard_data, "user_uuid")
+    if (is.data.frame(keyboard_features) && nrow(keyboard_features) > 0) {
+      saveRDS(keyboard_features, file.path("data/results_temp/all", paste0(user, ".rds")))
+    }
     
-    # print extraction status update 
-    print(paste("Features of user", user, "taking", processing_time, "minutes were extracted. This is user number", which(users==user), "out of", length(users)))
-    write(paste0(Sys.time(),": SUCCESS: user", user," completed"), file = "data/errorlog_extraction.txt", append = TRUE)
+    # label EMA moments 
+    es_user <- ema_data %>% filter(user_id == user) %>% ungroup()
+    if (nrow(es_user) > 0) {
+      # assumes label_ema_in_keyboard() is available in env
+      keyboard_data <- label_ema_in_keyboard(keyboard_data, es_user, 90, 90)
+    }
+    # ensure es_questionnaire_id exists
+    if (!"es_questionnaire_id" %in% names(keyboard_data)) {
+      keyboard_data$es_questionnaire_id <- NA
+    }
     
-    # remove sensing, keyboard and es data frames from that user after feature extraction
-    rm( keyboard_data, 
-         keyboard_features_es, keyboard_features_day, keyboard_features_week, 
-         keyboard_features, keyboard_features_private, keyboard_features_public)
-
+    # ES windows
+    keyboard_data_es <- keyboard_data %>% filter(!is.na(es_questionnaire_id))
+    keyboard_features_es <- extract_keyboard_features(keyboard_data_es, "es_questionnaire_id")
+    if (is.data.frame(keyboard_features_es) && nrow(keyboard_features_es) > 0) {
+      saveRDS(keyboard_features_es, file.path("data/results_temp/moment", paste0(user, ".rds")))
+    }
+    
+    # ---- logging ----
+    t2 <- Sys.time()
+    processing_time <- round(as.numeric(difftime(t2, t1, units = "mins")), 2)
+    idx <- match(user, users)
+    message("Done user ", user, " in ", processing_time, " min [", idx, "/", length(users), "]")
+    write(paste0(Sys.time(), ": SUCCESS: user ", user, " completed in ", processing_time, " min"),
+          file = log_file, append = TRUE)
+    
+    rm(keyboard_data, keyboard_data_es, keyboard_features_es, keyboard_features)
+    invisible(NULL)
   },
-  
-  # Tell tryCatch what do in case of an error
-  error=function(e) {
-    write(paste0(Sys.time(),": ERROR: ",conditionMessage(e)," --> Current user is: ", user), file = "data/errorlog_extraction.txt", append = TRUE)
+  error = function(e) {
+    write(paste0(Sys.time(), ": ERROR: ", conditionMessage(e), " --> user: ", user),
+          file = log_file, append = TRUE)
+    invisible(NULL)
   })
-  
-} # end of function
+}
 
 
 ############ Execute Feature Extraction Function #############
 
-# keyboard_feature_extraction(user) # test single feature extraction
+#keyboard_feature_extraction(user) # test single feature extraction
 
 # Load the packages for parallelization
 
