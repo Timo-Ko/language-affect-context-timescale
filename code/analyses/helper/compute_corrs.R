@@ -154,12 +154,8 @@ spearman_boot_ci_cluster <- function(x, y, id, R = 1000, conf = 0.95, min_n = 5,
     return(c(rho = NA_real_, ci_lower = NA_real_, ci_upper = NA_real_, p_value = NA_real_, n = n))
   }
   
-  # Point estimate (same as your pooled analysis)
+  # Point estimate (pooled, as in your current pipeline)
   rho_hat <- suppressWarnings(stats::cor(x, y, method = "spearman"))
-  
-  # p-value (keep as in your current pipeline; note: not cluster-robust)
-  ct <- suppressWarnings(stats::cor.test(x, y, method = "spearman", exact = FALSE))
-  p_val <- ct$p.value
   
   # Participant-level bootstrap
   ids <- unique(id)
@@ -168,7 +164,6 @@ spearman_boot_ci_cluster <- function(x, y, id, R = 1000, conf = 0.95, min_n = 5,
   boot_rho <- replicate(R, {
     sampled_ids <- sample(ids, size = m, replace = TRUE)
     
-    # collect all rows for each sampled participant (with multiplicity)
     idx_list <- lapply(sampled_ids, function(sid) which(id == sid))
     idx <- unlist(idx_list, use.names = FALSE)
     
@@ -179,11 +174,26 @@ spearman_boot_ci_cluster <- function(x, y, id, R = 1000, conf = 0.95, min_n = 5,
     suppressWarnings(stats::cor(xb, yb, method = "spearman"))
   })
   
+  boot_rho <- boot_rho[is.finite(boot_rho)]
+  
+  if (length(boot_rho) < max(50, ceiling(0.1 * R))) {
+    return(c(rho = rho_hat, ci_lower = NA_real_, ci_upper = NA_real_, p_value = NA_real_, n = n))
+  }
+  
+  # Percentile CI
   alpha <- (1 - conf) / 2
   ci <- stats::quantile(boot_rho, probs = c(alpha, 1 - alpha), na.rm = TRUE, names = FALSE)
   
+  # Participant-aware two-sided p-value from the same bootstrap distribution
+  # (plus-one correction to avoid p=0)
+  B <- length(boot_rho)
+  p_left  <- (sum(boot_rho <= 0) + 1) / (B + 1)
+  p_right <- (sum(boot_rho >= 0) + 1) / (B + 1)
+  p_val <- min(1, 2 * min(p_left, p_right))
+  
   c(rho = rho_hat, ci_lower = ci[1], ci_upper = ci[2], p_value = p_val, n = n)
 }
+
 
 #' corrFunc variant for nested state data (cluster bootstrap)
 #'

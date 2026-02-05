@@ -12,7 +12,7 @@ lapply(packages, library, character.only = TRUE)
 keyboard_data_trait <- readRDS(file="data/results/keyboard_data_trait_final.rds")
 
 # state affect
-keyboard_data_state <- as.data.frame(readRDS(file="data/results/keyboard_data_state_final.rds"))
+keyboard_data_state <- as.data.frame(readRDS(file="data/results/keyboard_data_ema_pre180_final.rds"))
 
 #### SAMPLE DESCRIPTIVES ####
 

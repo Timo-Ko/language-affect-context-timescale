@@ -15,7 +15,21 @@ source("code/analyses/helper/compute_corrs.R") # function to filter correlations
 keyboard_data_trait <- readRDS(file="data/results/keyboard_data_trait_final.rds")
 
 # state emotion
-keyboard_data_state <- as.data.frame(readRDS(file="data/results/keyboard_data_state_final.rds"))
+#keyboard_data_ema_centered <- as.data.frame(readRDS(file="data/results/keyboard_data_ema_centered_final.rds"))
+keyboard_data_ema_pre180 <- as.data.frame(readRDS(file="data/results/keyboard_data_ema_pre180_final.rds"))
+keyboard_data_ema_pre60 <- as.data.frame(readRDS(file="data/results/keyboard_data_ema_pre60_final.rds"))
+
+# add new diversity measure
+
+keyboard_data_trait <- keyboard_data_trait %>%
+  mutate(emoji_div = if_else(emoji_count_sum > 0,
+                             unique_emoji_count_sum / emoji_count_sum,
+                             NA_real_))
+
+keyboard_data_ema_pre180 <- keyboard_data_ema_pre180 %>%
+  mutate(emoji_div = if_else(emoji_count_sum > 0,
+                             unique_emoji_count_sum / emoji_count_sum,
+                             NA_real_))
 
 # read in helper dfs
 emoji_df <- readRDS("data/helper/emoji_df.rds")
@@ -35,45 +49,49 @@ features <- features[!features %in% c(
   "senti_emoji_match_rate"
 )]
 
-## ============================================================
-## CORRELATIONS: overall + by gender in ONE final table
-## Men coded "1", Women coded "2" -> column suffixes _men / _women
-## Trait: cor_table
-## State: cor_table_cluster (overall + within gender)
-## ============================================================
+metrics <- c("emoji_word_ratio", "emoji_div", "senti_emoji_avg")
+symbols <- features[6:112]
 
-## ----------------------------
-## 1) Overall correlations
-## ----------------------------
+# compute corrs
 
 # trait (overall)
 cor_trait <- cor_table(
   data_frame = keyboard_data_trait,
   targets    = c("pa_panas", "na_panas"),
-  features   = features
+  features   = metrics
 ) %>%
   mutate(group = "all", level = "trait")
 
 # state (overall; participant-blocked bootstrap)
+
 cor_state <- cor_table_cluster(
-  data_frame = keyboard_data_state,
+  data_frame = keyboard_data_ema_pre180,
   targets    = c("valence"),
-  features   = features,
+  features   = metrics,
   id_var     = "user_id",
   R          = 1000,
   seed       = 1
 ) %>%
   mutate(group = "all", level = "state")
 
-## ----------------------------
-## 2) By-gender correlations
-## ----------------------------
+# cor_state_pre60 <- cor_table_cluster(
+#   data_frame = keyboard_data_ema_pre60,
+#   targets    = c("valence"),
+#   features   = metrics,
+#   id_var     = "user_id",
+#   R          = 1000,
+#   seed       = 1
+# ) %>%
+#   mutate(group = "all", level = "state")
+
+
+## Gender-sensitivity analyses
 
 # trait by gender
 cor_trait_by_gender <- cor_table_by_gender(
   data_frame = keyboard_data_trait,
   targets    = c("pa_panas", "na_panas"),
-  features   = features,
+  features   = metrics,
   gender_var = "gender",
   R          = 1000,
   seed       = 1
@@ -87,290 +105,459 @@ cor_trait_by_gender <- cor_table_by_gender(
     level = "trait"
   )
 
-# state by gender (IMPORTANT: keep participant-blocked bootstrapping within gender)
+# state by gender (keep participant-blocked bootstrapping within gender)
 cor_state_by_gender <- bind_rows(
   cor_table_cluster(
-    data_frame = keyboard_data_state %>% filter(gender == "1"),
+    data_frame = keyboard_data_ema_pre180 %>% filter(gender == "1"),
     targets    = c("valence"),
-    features   = features,
+    features   = metrics,
     id_var     = "user_id",
     R          = 1000,
     seed       = 1
   ) %>% mutate(group = "men", level = "state"),
   
   cor_table_cluster(
-    data_frame = keyboard_data_state %>% filter(gender == "2"),
+    data_frame = keyboard_data_ema_pre180 %>% filter(gender == "2"),
     targets    = c("valence"),
-    features   = features,
+    features   = metrics,
     id_var     = "user_id",
     R          = 1000,
     seed       = 1
   ) %>% mutate(group = "women", level = "state")
 )
 
-## ----------------------------
-## 3) Combine all results (long) + add symbols
-## ----------------------------
 
-cor_all_long <- bind_rows(
+cor_overview <- dplyr::bind_rows(
   cor_trait,
+  cor_trait_by_gender %>%
+    dplyr::select(-c(gender, n_gender_total)) %>%
+    dplyr::select(dplyr::all_of(names(cor_trait))),
   cor_state,
-  cor_trait_by_gender,
-  cor_state_by_gender
+  cor_state_by_gender %>%
+    dplyr::select(dplyr::all_of(names(cor_trait)))
+) %>%
+  dplyr::mutate(
+    dplyr::across(where(is.numeric), ~ round(.x, 3))
+  )
+
+# save as table
+write.csv(cor_overview, "results/emoji_metrics_cor_table.csv")
+
+
+### state within person modeling
+
+library(dplyr)
+library(lme4)
+library(tibble)
+
+# 1) within-person centered predictors
+keyboard_data_state_within <- keyboard_data_ema_pre180 %>%
+  group_by(user_id) %>%
+  mutate(
+    emoji_vol_mean  = mean(emoji_word_ratio, na.rm = TRUE),
+    emoji_vol_wp    = emoji_word_ratio - emoji_vol_mean,
+    emoji_div_mean  = mean(emoji_div, na.rm = TRUE),
+    emoji_div_wp    = emoji_div - emoji_div_mean,
+    emoji_sent_mean = mean(senti_emoji_avg, na.rm = TRUE),
+    emoji_sent_wp   = senti_emoji_avg - emoji_sent_mean
+  ) %>%
+  ungroup()
+
+# 2) standardize outcome + predictors (makes coefficients comparable)
+keyboard_data_state_within <- keyboard_data_state_within %>%
+  mutate(
+    valence_z        = as.numeric(scale(valence)),
+    emoji_vol_wp_z   = as.numeric(scale(emoji_vol_wp)),
+    emoji_vol_mean_z = as.numeric(scale(emoji_vol_mean)),
+    emoji_div_wp_z   = as.numeric(scale(emoji_div_wp)),
+    emoji_div_mean_z = as.numeric(scale(emoji_div_mean)),
+    emoji_sent_wp_z  = as.numeric(scale(emoji_sent_wp)),
+    emoji_sent_mean_z= as.numeric(scale(emoji_sent_mean))
+  )
+
+# 3) fit standardized multilevel model
+m_z <- lmer(
+  valence_z ~ emoji_vol_wp_z + emoji_vol_mean_z +
+    emoji_div_wp_z + emoji_div_mean_z +
+    emoji_sent_wp_z + emoji_sent_mean_z +
+    (1 | user_id),
+  data = keyboard_data_state_within
+)
+
+# 4) bootstrap CIs for fixed effects (keep only the WP terms for reporting)
+wp_terms <- c("emoji_vol_wp_z", "emoji_div_wp_z", "emoji_sent_wp_z")
+
+ci_boot <- confint(
+  m_z,
+  method = "boot",
+  nsim = 1000,
+  parm = wp_terms
+)
+
+fe <- fixef(m_z)
+
+within_person_overview <- tibble(
+  term     = wp_terms,
+  estimate = unname(fe[wp_terms]),
+  ci_lower = ci_boot[wp_terms, 1],
+  ci_upper = ci_boot[wp_terms, 2]
 ) %>%
   mutate(
-    # clean feature names for symbol join
-    feature = str_remove(feature, "(_sum_share|_sum)$"),
-    emoticon_name_key = str_remove(feature, "^emoticon_")
+    metric = case_when(
+      term == "emoji_vol_wp_z"  ~ "Emoji volume",
+      term == "emoji_div_wp_z"  ~ "Emoji diversity",
+      term == "emoji_sent_wp_z" ~ "Emoji sentiment",
+      TRUE ~ NA_character_
+    )
+  )
+
+# 5) save
+write.csv(within_person_overview,
+          "results/emoji_metrics_within_person.csv",
+          row.names = FALSE)
+
+## ---------------------------
+## Figure 1 (CHB): Global emoji metrics × affect
+## Panel A: Between-person Spearman corrs (trait PA/NA + state valence) – ALL participants
+## Panel B: Within-person standardized coefficients (WP terms) – ALL participants
+## ---------------------------
+
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+
+metric_labels <- c(
+  "emoji_word_ratio"        = "Emoji volume",
+  "emoji_div" = "Emoji diversity",
+  "senti_emoji_avg"         = "Emoji sentiment"
+)
+metrics_keep  <- names(metric_labels)
+metric_levels <- unname(metric_labels)
+
+assoc_map <- c(
+  "pa_panas" = "Trait PA",
+  "na_panas" = "Trait NA",
+  "valence"  = "State valence"
+)
+
+dodge <- position_dodge(width = 0.55)
+
+## ---------------------------
+## PANEL A: Between-person correlations from cor_overview
+## ---------------------------
+corA <- cor_overview %>%
+  filter(group == "all", level %in% c("trait", "state"), feature %in% metrics_keep) %>%
+  mutate(
+    metric = recode(feature, !!!metric_labels),
+    metric = factor(metric, levels = metric_levels),
+    metric = forcats::fct_rev(metric),
+    
+    assoc_type = recode(target, !!!assoc_map),
+    
+    # IMPORTANT: dodge order bottom -> top should be Valence, NA, PA
+    assoc_type = factor(assoc_type, levels = c("State valence", "Trait NA", "Trait PA"))
   ) %>%
-  # join emoji symbols
-  left_join(emoji_df %>% select(variable_name, emoji),
-            by = c("feature" = "variable_name")) %>%
-  # join emoticon symbols
-  left_join(emoticons_df %>% select(emoticon_name, emoticon),
-            by = c("emoticon_name_key" = "emoticon_name")) %>%
-  mutate(symbol = coalesce(emoji, emoticon)) %>%
-  # harmonize target labels
-  mutate(target = case_when(
-    target == "pa_panas" ~ "pa",
-    target == "na_panas" ~ "na",
-    TRUE ~ target
-  )) %>%
-  select(level, group, target, feature, symbol, r, ci_lower, ci_upper, p_value, n)
+  arrange(metric, assoc_type)
 
-## ----------------------------
-## 4) Final ONE table (wide): all / men / women side-by-side
-## ----------------------------
+pA <- ggplot(
+  corA,
+  aes(
+    x = r,
+    y = metric,
+    xmin = ci_lower,
+    xmax = ci_upper,
+    color = assoc_type,
+    group = assoc_type
+  )
+) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray70") +
+  geom_errorbarh(height = 0, linewidth = 0.5, position = dodge) +
+  geom_point(size = 2.2, position = dodge) +
+  # Use coord_cartesian so CIs slightly beyond ±0.2 are clipped, not dropped
+  scale_x_continuous(breaks = seq(-0.2, 0.2, by = 0.1)) +
+  coord_cartesian(xlim = c(-0.2, 0.2)) +
+  scale_color_manual(
+    values = c(
+      "Trait PA"      = "#0072B2",
+      "Trait NA"      = "#D55E00",
+      "State valence" = "#009E73"
+    ),
+    # Legend order (independent of dodge order)
+    breaks = c("Trait PA", "Trait NA", "State valence")
+  ) +
+  labs(
+    title = "A) Trait and state associations",
+    x = "Spearman correlation (\u03C1)",
+    y = NULL,
+    color = NULL
+  ) +
+  theme_classic(base_size = 11) +
+  theme(
+    plot.title = element_text(size = 11, face = "bold"),
+    legend.position = "bottom"
+  )
 
-# optional: enforce column order for groups
-cor_all_long_filtered <- cor_all_long %>%
-  mutate(group = factor(group, levels = c("all", "men", "women"))) %>%
-  dplyr::filter(
-    (ci_lower > 0 & ci_upper > 0) |
-      (ci_lower < 0 & ci_upper < 0)) %>%
-  mutate(across(where(is.numeric), ~ round(.x, 2)))
+## ---------------------------
+## PANEL B: Within-person coefficients from within_person_results
+## ---------------------------
+dfB <- within_person_overview %>%
+  mutate(
+    metric = factor(metric, levels = metric_levels),
+    metric = forcats::fct_rev(metric)
+  ) %>%
+  arrange(metric)
+
+pB <- ggplot(dfB, aes(x = estimate, y = metric, xmin = ci_lower, xmax = ci_upper)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray70") +
+  geom_errorbarh(height = 0, linewidth = 0.5, color = "#009E73") +
+  geom_point(size = 2.2, color = "#009E73") +
+  scale_x_continuous(breaks = seq(-0.2, 0.2, by = 0.1)) +
+  coord_cartesian(xlim = c(-0.2, 0.2)) +
+  labs(
+    title = "B) Within-person state associations",
+    x = "Standardized within-person coefficient (\u03B2)",
+    y = NULL
+  ) +
+  theme_classic(base_size = 11) +
+  theme(
+    plot.title = element_text(size = 11, face = "bold"),
+    axis.text.y = element_blank()
+  )
+
+## ---------------------------
+## Combine + save
+## ---------------------------
+fig1 <- pA | pB
+fig1
+
+ggsave(
+  filename = "figures/figure1_emoji_affect_global.png",
+  plot = fig1,
+  width = 10, height = 4, dpi = 300
+)
+
+### Symbol level affect correlations
+
+# compute corrs
+
+# trait 
+cor_trait_symbol <- cor_table(
+  data_frame = keyboard_data_trait,
+  targets    = c("pa_panas", "na_panas"),
+  features   = symbols
+) %>%
+  mutate(group = "all", level = "trait")
+
+# state (overall; participant-blocked bootstrap)
+cor_state_symbol <- cor_table_cluster(
+  data_frame = keyboard_data_ema_pre180,
+  targets    = c("valence"),
+  features   = symbols,
+  id_var     = "user_id",
+  R          = 1000,
+  seed       = 1
+) %>%
+  mutate(group = "all", level = "state")
 
 
+# create overview table 
+cor_symbol_table_overview <- dplyr::bind_rows(cor_trait_symbol, cor_state_symbol) %>%
+  dplyr::mutate(
+    # derive printable symbol from feature name
+    symbol = dplyr::case_when(
+      stringr::str_detect(feature, "^emoji_") ~ {
+        cp <- suppressWarnings(as.integer(stringr::str_extract(feature, "(?<=emoji_)\\d+")))
+        ifelse(!is.na(cp), intToUtf8(cp, multiple = TRUE), NA_character_)
+      },
+      stringr::str_detect(feature, "^emoticon_") ~ {
+        x <- stringr::str_remove(feature, "^emoticon_")
+        stringr::str_remove(x, "(_sum)?(_share)?$")
+      },
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  dplyr::relocate(symbol, .after = feature) %>%
+  dplyr::mutate(
+    dplyr::across(where(is.numeric), ~ round(.x, 3))
+  )
 
-#paper <- cor_all_long_filtered %>% filter (group == "all")
+
+# --- BH-FDR correction (per target / outcome) ---
+cor_symbol_table_overview <- cor_symbol_table_overview %>%
+  dplyr::group_by(target) %>%  # change "target" to your outcome column name if different
+  dplyr::mutate(q_bh = p.adjust(p_value, method = "BH")) %>%  # change "p_value" if your p column is named differently
+  dplyr::ungroup()
 
 
-# #### transform to wide format
-# 
-# cor_final_table <- cor_all_long %>%
-#   mutate(across(where(is.numeric), ~ round(.x, 2))) %>%
-#   pivot_wider(
-#     id_cols     = c(level, target, feature, symbol),
-#     names_from  = group,
-#     values_from = c(r, ci_lower, ci_upper, p_value, n),
-#     names_glue  = "{.value}_{group}"
-#   ) %>%
-#   arrange(level, target, feature)
-
-## ----------------------------
-## 5) Save
-## ----------------------------
-
-# write.csv(
-#   cor_final_table,
-#   "data/results/cor_table.csv",
-#   row.names = FALSE
-# )
+# save as table
+write.csv(cor_symbol_table_overview, "results/emoji_symbol_cor_table.csv")
 
 
 ## ============================================================
-## FIGURE 1: Show ALL targets for the selected emoji set
-## - Select emoji set: significant for >=1 TRAIT target (PA/NA) in pooled sample
-## - For those emoji, plot PA/NA/Valence correlations
-## - If a target-specific CI includes 0, draw that point/CI in a lighter shade
+## FIGURE 2 (final): include emojis significant for ANY target
+## Selection rule: keep emoji if CI excludes 0 for Trait PA OR Trait NA OR State valence
+## - Emoji only (no emoticons)
+## - Correct facial/non-facial classification (uses codepoint from `symbol`)
+## - Ensures no stale `long_data` is reused
+## - Dodge order matches Fig 1: PA (top) -> NA -> State valence (bottom)
+## - Facet strip text 25% smaller (12 -> 9)
 ## ============================================================
 
-library(tidyverse)
+library(dplyr)
 library(stringr)
+library(ggplot2)
+library(forcats)
 
-## ---------- helpers: reorder within facet ----------
 reorder_within <- function(x, by, within, fun = mean, sep = "___", ...) {
   new_x <- paste(x, within, sep = sep)
   stats::reorder(new_x, by, FUN = fun)
 }
-scale_y_reordered <- function(sep = "___", ...) {
-  scale_y_discrete(labels = function(x) gsub(paste0(sep, ".*$"), "", x), ...)
-}
 
-## ---------- helper: CI excludes 0 ----------
 ci_excludes_zero <- function(l, u) {
   !is.na(l) & !is.na(u) & ((l > 0 & u > 0) | (l < 0 & u < 0))
 }
 
-## ============================================================
-## IMPORTANT:
-## To show non-sig targets (CI contains 0), you must start from an
-## UNFILTERED correlations table. If `cor_all_long_filtered` already
-## removed those rows, use your pre-filter object here instead.
-## ============================================================
-paper_all <- cor_all_long %>%                      # <-- use UNFILTERED object here
-  dplyr::filter(group == "all") %>%
-  dplyr::filter(!is.na(symbol) & symbol != "" & symbol != "NA") %>%
+## ---------- 0) start from overview table (emoji only) ----------
+paper_all <- cor_symbol_table_overview %>%
+  filter(group == "all") %>%
+  filter(str_detect(feature, "^emoji_")) %>%              # emoji only
+  filter(!is.na(symbol) & symbol != "" & symbol != "NA") %>%
   mutate(across(c(r, ci_lower, ci_upper), as.numeric))
 
-## For selecting the emoji set, apply the SAME significance rule as before
-paper_sig <- paper_all %>%
-  dplyr::filter(ci_excludes_zero(ci_lower, ci_upper))
-
-## ---------- 1A) selection uses SIGNIFICANT TRAIT results only ----------
-trait_wide_sig <- paper_sig %>%
-  dplyr::filter(level == "trait", target %in% c("pa", "na")) %>%
-  dplyr::select(feature, symbol, target, r, ci_lower, ci_upper) %>%
-  tidyr::pivot_wider(
-    names_from  = target,
-    values_from = c(r, ci_lower, ci_upper),
-    names_glue  = "{.value}_{target}"
-  )
-
-selected_set <- trait_wide_sig %>%
-  mutate(
-    sig_trait_pa = ci_excludes_zero(ci_lower_pa, ci_upper_pa),
-    sig_trait_na = ci_excludes_zero(ci_lower_na, ci_upper_na)
+## ---------- 1) select emoji set: significant for ANY target (PA/NA/Valence) ----------
+selected_set <- paper_all %>%
+  filter(
+    (level == "trait" & target %in% c("pa_panas", "na_panas")) |
+      (level == "state" & target == "valence")
   ) %>%
-  dplyr::filter(sig_trait_pa | sig_trait_na) %>%
-  dplyr::select(feature, symbol) %>%
-  distinct()
+  group_by(feature) %>%
+  summarise(sig_any_target = any(ci_excludes_zero(ci_lower, ci_upper)), .groups = "drop") %>%
+  filter(sig_any_target) %>%
+  select(feature)
 
-## ---------- 1B) plotting uses ALL rows (sig + non-sig), but only for selected emoji ----------
+## ---------- 2) keep ALL targets for selected emojis ----------
 paper_plot <- paper_all %>%
-  dplyr::semi_join(selected_set, by = c("feature", "symbol")) %>%
-  dplyr::filter(
-    (level == "trait" & target %in% c("pa", "na")) |
-      (level == "state" & target %in% c("valence"))
+  semi_join(selected_set, by = "feature") %>%
+  filter(
+    (level == "trait" & target %in% c("pa_panas", "na_panas")) |
+      (level == "state" & target == "valence")
   )
 
-## ---------- 2) wide by target for plotting (ALL CIs kept) ----------
-trait_wide_all <- paper_plot %>%
-  dplyr::filter(level == "trait", target %in% c("pa", "na")) %>%
-  dplyr::select(feature, symbol, target, r, ci_lower, ci_upper) %>%
-  tidyr::pivot_wider(
-    names_from  = target,
-    values_from = c(r, ci_lower, ci_upper),
-    names_glue  = "{.value}_{target}"
-  )
-
-state_wide_all <- paper_plot %>%
-  dplyr::filter(level == "state", target %in% c("valence")) %>%
-  dplyr::select(feature, symbol, r, ci_lower, ci_upper) %>%
-  dplyr::rename(
-    r_valence        = r,
-    ci_lower_valence = ci_lower,
-    ci_upper_valence = ci_upper
-  )
-
-plot_data <- trait_wide_all %>%
-  dplyr::full_join(state_wide_all, by = c("feature", "symbol"))
-
-## ---------- 3) metadata + ordering computed once per emoji ----------
-selected_symbols <- plot_data %>%
+## ---------- 3) compute ranking + emoji type per feature (codepoint from symbol; robust) ----------
+emoji_meta <- paper_plot %>%
+  group_by(feature) %>%
+  summarise(
+    symbol = dplyr::first(symbol),
+    total_abs_corr = sum(abs(r), na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
   mutate(
-    # if state valence missing, treat as 0 for ranking only
-    r_valence_for_rank = dplyr::coalesce(r_valence, 0),
-    total_abs_corr     = abs(r_pa) + abs(r_na) + abs(r_valence_for_rank),
-    
-    codepoint = suppressWarnings(as.integer(str_extract(feature, "(?<=emoji_)\\d+"))),
-    
+    codepoint = vapply(symbol, function(s) {
+      if (is.na(s) || s == "") return(NA_integer_)
+      utf8ToInt(s)[1]
+    }, integer(1)),
     emoji_type = case_when(
-      symbol == "^^" ~ "Facial symbols",
       !is.na(codepoint) & (
-        dplyr::between(codepoint, 0x1F600, 0x1F64F) |
-          dplyr::between(codepoint, 0x1F910, 0x1F92F) |
-          dplyr::between(codepoint, 0x1F970, 0x1F97A)
-      ) ~ "Facial symbols",
-      TRUE ~ "Non-facial symbols"
+        dplyr::between(codepoint, 0x1F600, 0x1F64F) |  # emoticons block (faces)
+          dplyr::between(codepoint, 0x1F910, 0x1F9FF)    # supplemental symbols & pictographs (faces incl. 🧐)
+      ) ~ "Facial emojis",
+      TRUE ~ "Non-facial emojis"
     )
   ) %>%
-  select(-r_valence_for_rank)
+  select(feature, symbol, total_abs_corr, emoji_type)
 
-## ---------- 4) long format for plotting (PA, NA, Valence) ----------
-long_data <- selected_symbols %>%
-  select(symbol, emoji_type, total_abs_corr,
-         r_pa, ci_lower_pa, ci_upper_pa,
-         r_na, ci_lower_na, ci_upper_na,
-         r_valence, ci_lower_valence, ci_upper_valence) %>%
-  pivot_longer(cols = c(r_pa, r_na, r_valence),
-               names_to = "target", values_to = "rho") %>%
+feat_to_sym <- setNames(emoji_meta$symbol, emoji_meta$feature)
+
+## ---------- 4) long plot data (REBUILT; do not reuse old long_data) ----------
+long_data <- paper_plot %>%
+  # drop any stale cols if they exist (safe no-op otherwise)
+  dplyr::select(-dplyr::any_of(c("emoji_type", "total_abs_corr", "codepoint", "feature_faceted", "target_label", "alpha_val"))) %>%
+  left_join(emoji_meta, by = "feature") %>%
   mutate(
-    ci_lower = case_when(
-      target == "r_pa" ~ ci_lower_pa,
-      target == "r_na" ~ ci_lower_na,
-      TRUE             ~ ci_lower_valence
-    ),
-    ci_upper = case_when(
-      target == "r_pa" ~ ci_upper_pa,
-      target == "r_na" ~ ci_upper_na,
-      TRUE             ~ ci_upper_valence
-    ),
+    emoji_type = factor(emoji_type, levels = c("Facial emojis", "Non-facial emojis")),
     target_label = case_when(
-      target == "r_pa" ~ "Trait Positive Affect",
-      target == "r_na" ~ "Trait Negative Affect",
-      TRUE             ~ "State Affective Valence"
+      target == "pa_panas" ~ "Trait PA",
+      target == "na_panas" ~ "Trait NA",
+      target == "valence"  ~ "State valence",
+      TRUE ~ as.character(target)
     ),
-    # significance for the CURRENT target (drives lighter shade)
+    # Dodge order (bottom -> top): Valence, NA, PA  => PA appears on top
+    target_label = factor(target_label, levels = c("State valence", "Trait NA", "Trait PA")),
     sig = ci_excludes_zero(ci_lower, ci_upper),
     alpha_val = ifelse(sig, 1.0, 0.25),
-    
-    # keep EXACT same y-axis emoji set; order within facet by total_abs_corr
-    symbol_faceted = reorder_within(symbol, total_abs_corr, within = emoji_type),
-    
-    rho      = round(rho, 2),
-    ci_lower = round(ci_lower, 2),
-    ci_upper = round(ci_upper, 2)
+    feature_faceted = reorder_within(feature, total_abs_corr, within = emoji_type)
   )
 
 ## ---------- 5) plot ----------
-corr_plot <- ggplot(long_data, aes(x = rho, y = symbol_faceted, color = target_label)) +
+dodge <- position_dodge(width = 0.6)
+
+symbol_plot <- ggplot(
+  long_data,
+  aes(
+    x = r,
+    y = feature_faceted,
+    xmin = ci_lower,
+    xmax = ci_upper,
+    color = target_label,
+    group = target_label
+  )
+) +
   geom_vline(xintercept = 0, linetype = "dashed", color = "gray70") +
   geom_errorbarh(
-    aes(xmin = ci_lower, xmax = ci_upper, alpha = alpha_val),
+    aes(alpha = alpha_val),
     height = 0, linewidth = 0.8,
-    position = position_dodge(width = 0.6),
+    position = dodge,
     na.rm = TRUE
   ) +
   geom_point(
     aes(alpha = alpha_val),
     size = 3,
-    position = position_dodge(width = 0.6),
+    position = dodge,
     na.rm = TRUE
   ) +
   facet_grid(emoji_type ~ ., scales = "free_y", space = "free_y") +
-  scale_y_reordered() +
+  scale_y_discrete(
+    labels = function(x) {
+      base <- gsub("___.*$", "", x)
+      out  <- unname(feat_to_sym[base])
+      out[is.na(out)] <- base[is.na(out)]
+      out
+    }
+  ) +
   scale_color_manual(
-    values = c("Trait Positive Affect"   = "#0072B2",
-               "Trait Negative Affect"   = "#D55E00",
-               "State Affective Valence" = "#009E73"),
-    labels = c("Trait Positive Affect"   = "Trait PA",
-               "Trait Negative Affect"   = "Trait NA",
-               "State Affective Valence" = "State Valence")
+    values = c(
+      "Trait PA"      = "#0072B2",
+      "Trait NA"      = "#D55E00",
+      "State valence" = "#009E73"
+    ),
+    # legend order independent of dodge order
+    breaks = c("Trait PA", "Trait NA", "State valence"),
+    labels = c("Trait PA", "Trait NA", "State Valence")
   ) +
   scale_alpha_identity(guide = "none") +
+  scale_x_continuous(breaks = seq(-0.25, 0.25, by = 0.1)) +
+  coord_cartesian(xlim = c(-0.25, 0.25)) +
   labs(
-    x = expression(paste("Spearman Correlation (", rho, ")")),
+    x = "Spearman correlation (\u03C1)",
     y = NULL,
-    color = "Affective Target"
+    color = NULL
   ) +
-  theme_minimal() +
+  theme_classic(base_size = 11) +
   theme(
     legend.position = "bottom",
     axis.text.y = element_text(size = 16),
     legend.text = element_text(size = 11),
-    strip.text.y = element_text(size = 12, face = "bold"),
+    strip.text.y = element_text(size = 7, face = "bold"),  
     strip.placement = "outside"
   )
 
-print(corr_plot)
+print(symbol_plot)
 
-## ---------- 6) save ----------
 ggsave(
-  filename = "figures/fig1_corr_plot_facial_vs_nonfacial.png",
-  plot     = corr_plot,
+  filename = "figures/figure2_symbol_corr_plot.png",
+  plot     = symbol_plot,
   width    = 6,
-  height   = 9,
+  height   = 10,
   units    = "in",
   dpi      = 300
 )
