@@ -2,21 +2,51 @@
 
 # load data sets
 keyboard_data_trait <- readRDS("data/results/keyboard_data_trait_changers.rds") # trait
-keyboard_data_state <- readRDS( "data/results/keyboard_data_state_changers.rds") # es moment 
+
+#keyboard_data_ema_centered <- readRDS( "data/results/keyboard_data_ema_centered_changers.rds") # es moment 
+keyboard_data_ema_pre180 <- readRDS( "data/results/keyboard_data_ema_pre180_changers.rds") # es moment 
+
+keyboard_data_ema_pre60 <- readRDS( "data/results/keyboard_data_ema_pre60_changers.rds") # es moment 
 
 # for trait analyses, only include participants with at least ten used symbols
-keyboard_data_trait <- keyboard_data_trait %>%
-  mutate(
-    total_symbols = emoji_count_sum + emoticon_count_sum
-  ) %>%
-  filter(total_symbols >= 10)
 
-# for state analyses, only include windows with at least one symbol used
-keyboard_data_state <- keyboard_data_state %>%
-  mutate(
-    total_symbols = emoji_count_sum + emoticon_count_sum
-  ) %>%
-  filter(total_symbols >= 1)
+hist(keyboard_data_trait$unique_emoji_count_sum,
+     breaks = 1000,
+     xlim = c(0, 1000))
+
+describe(keyboard_data_trait$unique_emoji_count_sum)
+
+keyboard_data_trait <- keyboard_data_trait %>%
+  filter(emoji_count_sum >= 10)
+
+# for state analyses, only include windows with at least one emoji used
+
+hist(keyboard_data_ema_pre180$unique_emoji_count_sum,
+     breaks = 100)
+
+# sensitivity analysis 
+hist(keyboard_data_ema_pre60$unique_emoji_count_sum,
+     breaks = 100)
+
+keyboard_data_ema_pre180_filter <- keyboard_data_ema_pre180 %>%
+  filter(emoji_count_sum >= 1)
+
+# compare valence scores with dropped emas
+# kept vs dropped indicator
+ema_comp <- keyboard_data_ema_pre180 %>%
+  mutate(kept = emoji_count_sum >= 1)
+
+# descriptive comparison
+ema_comp %>%
+  group_by(kept) %>%
+  summarise(
+    n = sum(!is.na(valence)),
+    mean_valence = mean(valence, na.rm = TRUE),
+    sd_valence   = sd(valence, na.rm = TRUE),
+    median_valence = median(valence, na.rm = TRUE),
+    .groups = "drop"
+  )
+
 
 ### drop rare emoji and emoticons
 
@@ -59,68 +89,48 @@ rare_emoticons <- names(proportion_emoticon_used)[as.numeric(proportion_emoticon
 
 rare_symbols <- union(rare_emoji, rare_emoticons)
 
-keyboard_data_state_cleaned <- keyboard_data_state %>%
+keyboard_data_trait_cleaned <- keyboard_data_trait %>%
   select(-any_of(rare_symbols))
 
-keyboard_data_trait_cleaned <- keyboard_data_trait %>%
+keyboard_data_ema_centered_cleaned <- keyboard_data_ema_centered %>%
+  select(-any_of(rare_symbols))
+
+keyboard_data_ema_pre60_cleaned <- keyboard_data_ema_pre60 %>%
   select(-any_of(rare_symbols))
 
 
 ### normalize symbol use metrics per typed words
 
-# trait 
 
-keyboard_data_trait_cleaned <- keyboard_data_trait_cleaned %>%
-  mutate(
-    emoticon_word_ratio = if_else(words_typed_sum > 0,
-                                           (emoticon_count_sum / words_typed_sum),
-                                           NA_real_),
-    unique_emoticon_word_ratio = if_else(words_typed_sum > 0,
-                                           (unique_emoticon_count_sum / words_typed_sum),
-                                           NA_real_),
-    emoji_word_ratio    = if_else(words_typed_sum > 0,
-                                          (emoji_count_sum / words_typed_sum),
-                                          NA_real_),
-    unique_emoji_word_ratio    = if_else(words_typed_sum > 0,
-                                           (unique_emoji_count_sum / words_typed_sum),
-                                           NA_real_)
-  ) %>%
-  relocate(
-    emoticon_word_ratio,
-    unique_emoticon_word_ratio,
-    emoji_word_ratio,
-    unique_emoji_word_ratio,
-    .after = na_panas
-  )
+# helper: add ratios + relocate after a given column
+add_word_ratios <- function(df, after_col) {
+  df %>%
+    dplyr::mutate(
+      emoticon_word_ratio        = dplyr::if_else(words_typed_sum > 0,
+                                                  emoticon_count_sum / words_typed_sum, NA_real_),
+      unique_emoticon_word_ratio = dplyr::if_else(words_typed_sum > 0,
+                                                  unique_emoticon_count_sum / words_typed_sum, NA_real_),
+      emoji_word_ratio           = dplyr::if_else(words_typed_sum > 0,
+                                                  emoji_count_sum / words_typed_sum, NA_real_),
+      unique_emoji_word_ratio    = dplyr::if_else(words_typed_sum > 0,
+                                                  unique_emoji_count_sum / words_typed_sum, NA_real_)
+    ) %>%
+    dplyr::relocate(
+      emoticon_word_ratio,
+      unique_emoticon_word_ratio,
+      emoji_word_ratio,
+      unique_emoji_word_ratio,
+      .after = dplyr::all_of(after_col)
+    )
+}
 
-# state
+keyboard_data_trait_cleaned <- add_word_ratios(keyboard_data_trait_cleaned, after_col = "na_panas")
 
-keyboard_data_state_cleaned <- keyboard_data_state_cleaned %>%
-  mutate(
-    emoticon_word_ratio = if_else(words_typed_sum > 0,
-                                     (emoticon_count_sum / words_typed_sum),
-                                     NA_real_),
-    unique_emoticon_word_ratio = if_else(words_typed_sum > 0,
-                                            (unique_emoticon_count_sum / words_typed_sum),
-                                            NA_real_),
-    emoji_word_ratio    = if_else(words_typed_sum > 0,
-                                     (emoji_count_sum / words_typed_sum),
-                                     NA_real_),
-    unique_emoji_word_ratio    = if_else(words_typed_sum > 0,
-                                            (unique_emoji_count_sum / words_typed_sum),
-                                            NA_real_)
-  ) %>%
-  relocate(
-    emoticon_word_ratio,
-    unique_emoticon_word_ratio,
-    emoji_word_ratio,
-    unique_emoji_word_ratio,
-    .after = gender
-  )
+keyboard_data_ema_centered_cleaned <- add_word_ratios(keyboard_data_ema_centered_cleaned, after_col = "gender")
+keyboard_data_ema_pre60_cleaned <- add_word_ratios(keyboard_data_ema_pre60_cleaned, after_col = "gender")
 
 
-
-### normalize single emoji and emoticon use
+### normalize single emoji and emoticon use (trait + state)
 
 # --- detect single-emoji and single-emoticon columns ---
 emoji_single_cols <- intersect(
@@ -133,51 +143,35 @@ emoticon_single_cols <- intersect(
   names(keyboard_data_trait_cleaned)
 )
 
+# helper: convert *_sum columns to shares and drop original sums
+add_symbol_shares <- function(df, emoji_cols, emoticon_cols) {
+  df %>%
+    dplyr::mutate(
+      dplyr::across(
+        dplyr::all_of(emoji_cols),
+        ~ ifelse(.data$emoji_count_sum > 0, .x / .data$emoji_count_sum, NA_real_),
+        .names = "{.col}_share"
+      ),
+      dplyr::across(
+        dplyr::all_of(emoticon_cols),
+        ~ ifelse(.data$emoticon_count_sum > 0, .x / .data$emoticon_count_sum, NA_real_),
+        .names = "{.col}_share"
+      )
+    ) %>%
+    dplyr::select(-dplyr::all_of(c(emoji_cols, emoticon_cols)))
+}
 
-# traits
+keyboard_data_trait_norm <- add_symbol_shares(keyboard_data_trait_cleaned, emoji_single_cols, emoticon_single_cols)
 
-# --- normalize by total emoji / emoticon count per user ---
-keyboard_data_trait_norm <- keyboard_data_trait_cleaned %>%
-  dplyr::mutate(
-    dplyr::across(
-      dplyr::all_of(emoji_single_cols),
-      ~ ifelse(.data$emoji_count_sum > 0, .x / .data$emoji_count_sum, NA_real_),
-      .names = "{.col}_share"
-    ),
-    dplyr::across(
-      dplyr::all_of(emoticon_single_cols),
-      ~ ifelse(.data$emoticon_count_sum > 0, .x / .data$emoticon_count_sum, NA_real_),
-      .names = "{.col}_share"
-    )
-  ) %>%
-  dplyr::select(
-    -dplyr::all_of(c(emoji_single_cols, emoticon_single_cols))
-  )
-
-## state
-
-# --- normalize by row-wise totals (ES window) ---
-keyboard_data_state_norm <- keyboard_data_state_cleaned %>%
-  dplyr::mutate(
-    dplyr::across(
-      dplyr::all_of(emoji_single_cols),
-      ~ ifelse(.data$emoji_count_sum > 0, .x / .data$emoji_count_sum, NA_real_),
-      .names = "{.col}_share"
-    ),
-    dplyr::across(
-      dplyr::all_of(emoticon_single_cols),
-      ~ ifelse(.data$emoticon_count_sum > 0, .x / .data$emoticon_count_sum, NA_real_),
-      .names = "{.col}_share"
-    )
-  ) %>%
-  dplyr::select(
-    -dplyr::all_of(c(emoji_single_cols, emoticon_single_cols))
-  )
+keyboard_data_ema_centered_norm <- add_symbol_shares(keyboard_data_ema_centered_cleaned, emoji_single_cols, emoticon_single_cols)
+keyboard_data_ema_pre60_norm <- add_symbol_shares(keyboard_data_ema_pre60_cleaned, emoji_single_cols, emoticon_single_cols)
 
 
 ## save cleaned data files 
 
-saveRDS(keyboard_data_trait_norm, "data/results/keyboard_data_trait_final.rds") # es moment 
-saveRDS(keyboard_data_state_norm, "data/results/keyboard_data_state_final.rds") # trait
+saveRDS(keyboard_data_trait_norm, "data/results/keyboard_data_trait_final.rds") 
 
-### preprocessing and feature extraction competed ###
+saveRDS(keyboard_data_ema_centered_norm, "data/results/keyboard_data_ema_centered_final.rds") 
+saveRDS(keyboard_data_ema_pre60_norm, "data/results/keyboard_data_ema_pre60_final.rds") 
+
+### pre60processing and feature extraction competed ###

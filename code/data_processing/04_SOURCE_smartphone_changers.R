@@ -1,9 +1,12 @@
 #### APPLY EXCLUSION CRITERIA TO KEYBOARD AND AFFECT DATA ####
 
 # load data sets
-keyboard_data_moment_ema = readRDS("data/results/keyboard_data_moment_ema.rds")
-
 keyboard_data_trait = readRDS("data/results/keyboard_data_trait.rds")
+
+
+keyboard_data_ema_centered = readRDS("data/results/keyboard_data_ema_centered.rds")
+keyboard_data_ema_pre60 = readRDS("data/results/keyboard_data_ema_pre60.rds")
+
 
 ## fix smartphone changers
 
@@ -42,9 +45,16 @@ keyboard_data_trait_cleaned <- keyboard_data_trait %>%
   # if trait data can contain multiple rows per person after merging, collapse to 1
   distinct(user_id, .keep_all = TRUE)
 
-# state level
+# state level - ema centered 
 
-keyboard_data_moment_ema_cleaned <- keyboard_data_moment_ema %>%
+keyboard_data_ema_centered_cleaned <- keyboard_data_ema_centered %>%
+  left_join(changers_map, by = "user_id") %>%
+  mutate(user_id = if_else(is.na(final_user_id), user_id, final_user_id)) %>%
+  select(-final_user_id)
+
+# state level - pre60 ema 
+
+keyboard_data_ema_pre60_cleaned <- keyboard_data_ema_pre60 %>%
   left_join(changers_map, by = "user_id") %>%
   mutate(user_id = if_else(is.na(final_user_id), user_id, final_user_id)) %>%
   select(-final_user_id)
@@ -67,5 +77,9 @@ stopifnot(nrow(keyboard_data_moment_ema_cleaned) == nrow(keyboard_data_moment_em
 
 ## save data files 
 
-saveRDS(keyboard_data_moment_ema_cleaned, "data/results/keyboard_data_state_changers.rds") # es moment 
 saveRDS(keyboard_data_trait_cleaned, "data/results/keyboard_data_trait_changers.rds") # trait
+
+saveRDS(keyboard_data_ema_centered_cleaned, "data/results/keyboard_data_ema_centered_changers.rds") # es moment 
+saveRDS(keyboard_data_ema_pre60_cleaned, "data/results/keyboard_data_ema_pre60_changers.rds") # es moment 
+
+# finish

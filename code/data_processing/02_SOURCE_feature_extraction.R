@@ -19,7 +19,9 @@ file_names <- list.files(path = in_dir, full.names = TRUE)
 users      <- sub("\\.rds$", "", basename(file_names))
 
 # ensure output dirs and log exist
-dir.create("data/results_temp/moment", recursive = TRUE, showWarnings = FALSE)
+#dir.create("data/results_temp/ema_centered", recursive = TRUE, showWarnings = FALSE)
+dir.create("data/results_temp/ema_pre180", recursive = TRUE, showWarnings = FALSE)
+dir.create("data/results_temp/ema_pre60", recursive = TRUE, showWarnings = FALSE)
 dir.create("data/results_temp/all",    recursive = TRUE, showWarnings = FALSE)
 log_file <- "data/errorlog_extraction.txt"
 if (!file.exists(log_file)) file.create(log_file)
@@ -52,30 +54,66 @@ keyboard_feature_extraction <- function(user) {
       return(invisible(NULL))
     }
     
-    # Trait / all-text windows
-    if (!"user_uuid" %in% names(keyboard_data)) keyboard_data$user_uuid <- user
-    keyboard_features <- extract_keyboard_features(keyboard_data, "user_uuid")
-    if (is.data.frame(keyboard_features) && nrow(keyboard_features) > 0) {
-      saveRDS(keyboard_features, file.path("data/results_temp/all", paste0(user, ".rds")))
-    }
+    # # Trait / all-text windows
+    # if (!"user_uuid" %in% names(keyboard_data)) keyboard_data$user_uuid <- user
+    # keyboard_features <- extract_keyboard_features(keyboard_data, "user_uuid")
+    # if (is.data.frame(keyboard_features) && nrow(keyboard_features) > 0) {
+    #   saveRDS(keyboard_features, file.path("data/results_temp/all", paste0(user, ".rds")))
+    # }
     
-    # label EMA moments 
+    # subset ema data to user
     es_user <- ema_data %>% filter(user_id == user) %>% ungroup()
-    if (nrow(es_user) > 0) {
-      # assumes label_ema_in_keyboard() is available in env
-      keyboard_data <- label_ema_in_keyboard(keyboard_data, es_user, 90, 90)
-    }
-    # ensure es_questionnaire_id exists
-    if (!"es_questionnaire_id" %in% names(keyboard_data)) {
-      keyboard_data$es_questionnaire_id <- NA
+    
+    # skip if no ema data from user
+    if (nrow(es_user) == 0) {
+      write(paste0(Sys.time(), ": SKIPPED: user ", user, " – no ema data"),
+            file = log_file, append = TRUE)
+      return(invisible(NULL))
     }
     
-    # ES windows
-    keyboard_data_es <- keyboard_data %>% filter(!is.na(es_questionnaire_id))
-    keyboard_features_es <- extract_keyboard_features(keyboard_data_es, "es_questionnaire_id")
-    if (is.data.frame(keyboard_features_es) && nrow(keyboard_features_es) > 0) {
-      saveRDS(keyboard_features_es, file.path("data/results_temp/moment", paste0(user, ".rds")))
+    # ## state : +/- 90 mins time window
+    # 
+    # #label EMA moments 
+    # if (nrow(es_user) > 0) {
+    #   keyboard_data_centered <- label_ema_in_keyboard(keyboard_data, es_user, 90, 90)
+    # }
+    # # subset to es windows
+    # keyboard_data_es_centered <- keyboard_data_centered %>% filter(!is.na(es_questionnaire_id))
+    # 
+    # # extract symbol features
+    # keyboard_features_es_centered <- extract_keyboard_features(keyboard_data_es_centered, "es_questionnaire_id")
+    # 
+    # # save features
+    # if (is.data.frame(keyboard_features_es_centered) && nrow(keyboard_features_es_centered) > 0) {
+    #   saveRDS(keyboard_features_es_centered, file.path("data/results_temp/ema_centered", paste0(user, ".rds")))
+    # }
+    # 
+    
+    ## state : pre 60 mins time window
+    
+    #label EMA moments 
+    if (nrow(es_user) > 0) {
+      keyboard_data_pre <- label_ema_in_keyboard(keyboard_data, es_user, 60, 0)
     }
+    
+    # subset to es windows
+    keyboard_data_es_pre <- keyboard_data_pre %>% filter(!is.na(es_questionnaire_id))
+    
+    # skip if no emoji/emoticon in es windows
+    if (sum(keyboard_data_es_pre$emoji_count + keyboard_data_es_pre$emoticon_count, na.rm = TRUE) < 1) {
+      write(paste0(Sys.time(), ": SKIPPED: user ", user, " – no emoji/emoticon usage"),
+            file = log_file, append = TRUE)
+      return(invisible(NULL))
+    }
+    
+    # extract symbol features
+    keyboard_features_es_pre <- extract_keyboard_features(keyboard_data_es_pre, "es_questionnaire_id")
+    
+    # save features
+    if (is.data.frame(keyboard_features_es_pre) && nrow(keyboard_features_es_pre) > 0) {
+      saveRDS(keyboard_features_es_pre, file.path("data/results_temp/ema_pre60", paste0(user, ".rds")))
+    }
+    
     
     # ---- logging ----
     t2 <- Sys.time()
@@ -85,7 +123,7 @@ keyboard_feature_extraction <- function(user) {
     write(paste0(Sys.time(), ": SUCCESS: user ", user, " completed in ", processing_time, " min"),
           file = log_file, append = TRUE)
     
-    rm(keyboard_data, keyboard_data_es, keyboard_features_es, keyboard_features)
+    rm(keyboard_data, keyboard_data_es_pre, keyboard_features_es_pre)
     invisible(NULL)
   },
   error = function(e) {
@@ -98,7 +136,7 @@ keyboard_feature_extraction <- function(user) {
 
 ############ Execute Feature Extraction Function #############
 
-#keyboard_feature_extraction(user) # test single feature extraction
+keyboard_feature_extraction(user) # test single feature extraction
 
 # Load the packages for parallelization
 

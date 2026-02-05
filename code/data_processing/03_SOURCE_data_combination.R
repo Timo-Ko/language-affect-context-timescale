@@ -16,22 +16,42 @@ panas_df = panas_df %>% mutate(user_uuid = as.character(user_uuid))
 ema_data = readRDS("data/ema/ema_data.rds") %>% mutate(user_id = as.character(user_id))
 
 ## load all keyboard data for different es time windows 
-keyboard_data_moment <- data.frame() # initialize df
+keyboard_data_ema_centered <- data.frame() # initialize df
+keyboard_data_ema_pre180 <- data.frame() # initialize df
+keyboard_data_ema_pre60 <- data.frame() # initialize df
 
-# es moment
-for(file in list.files("data/results_temp/moment/")){ # iterate through files
-  df1 = readRDS(paste0("data/results_temp/moment/", file)) # load user df
+# es moment - ema centered and pre ema 
+for(file in list.files("data/results_temp/ema_centered/")){ # iterate through files
+  df1 = readRDS(paste0("data/results_temp/ema_centered/", file)) # load user df
   df1 <- df1 %>%
     mutate(user_id = as.character(sub("\\.rds$", "", file))) %>%
     select(user_id, everything()) # add user_id
-  keyboard_data_moment = dplyr::bind_rows(keyboard_data_moment, df1) # append user data
+  keyboard_data_ema_centered = dplyr::bind_rows(keyboard_data_ema_centered, df1) # append user data
+}
+
+for(file in list.files("data/results_temp/ema_pre180/")){ # iterate through files
+  df1 = readRDS(paste0("data/results_temp/ema_pre180/", file)) # load user df
+  df1 <- df1 %>%
+    mutate(user_id = as.character(sub("\\.rds$", "", file))) %>%
+    select(user_id, everything()) # add user_id
+  keyboard_data_ema_pre = dplyr::bind_rows(keyboard_data_ema_pre, df1) # append user data
+}
+
+for(file in list.files("data/results_temp/ema_pre60/")){ # iterate through files
+  df1 = readRDS(paste0("data/results_temp/ema_pre60/", file)) # load user df
+  df1 <- df1 %>%
+    mutate(user_id = as.character(sub("\\.rds$", "", file))) %>%
+    select(user_id, everything()) # add user_id
+  keyboard_data_ema_pre60 = dplyr::bind_rows(keyboard_data_ema_pre60, df1) # append user data
 }
 
 # combine keyboard data and ema data and demographics
-keyboard_data_moment_ema = left_join(ema_data, demographics, by = "user_id", relationship = "many-to-one") %>% inner_join(keyboard_data_moment, by = c ("es_questionnaire_id", "user_id"))
+keyboard_data_ema_centered = left_join(ema_data, demographics, by = "user_id", relationship = "many-to-one") %>% inner_join(keyboard_data_ema_centered, by = c ("es_questionnaire_id", "user_id"))
+keyboard_data_ema_pre180 = left_join(ema_data, demographics, by = "user_id", relationship = "many-to-one") %>% inner_join(keyboard_data_ema_pre180, by = c ("es_questionnaire_id", "user_id"))
+keyboard_data_ema_pre60 = left_join(ema_data, demographics, by = "user_id", relationship = "many-to-one") %>% inner_join(keyboard_data_ema_pre60, by = c ("es_questionnaire_id", "user_id"))
 
 # drop irrelevant cols
-keyboard_data_moment_ema <- keyboard_data_moment_ema %>%
+keyboard_data_ema_centered <- keyboard_data_ema_centered %>%
   select(
     -c(
       notificationTimestamp,
@@ -49,9 +69,28 @@ keyboard_data_moment_ema <- keyboard_data_moment_ema %>%
     )
   )
 
+keyboard_data_ema_pre60 <- keyboard_data_ema_pre60 %>%
+  select(
+    -c(
+      notificationTimestamp,
+      questionnaireStartedTimestamp,
+      questionnaireEndedTimestamp,
+      arousal,
+      valence_avg,
+      arousal_avg,
+      weekday,
+      nr,
+      date,
+      week,
+      arousal_diff,
+      valence_diff
+    )
+  )
 
 # save combined data sets 
-saveRDS(keyboard_data_moment_ema, "data/results/keyboard_data_moment_ema.rds") # es moment 
+saveRDS(keyboard_data_ema_centered, "data/results/keyboard_data_ema_centered.rds") # es moment 
+saveRDS(keyboard_data_ema_pre180, "data/results/keyboard_data_ema_pre.rds") # es moment 
+saveRDS(keyboard_data_ema_pre60, "data/results/keyboard_data_ema_pre60.rds") # es moment 
 
 ## combine all keyboard data with trait affect (panas) data
 
