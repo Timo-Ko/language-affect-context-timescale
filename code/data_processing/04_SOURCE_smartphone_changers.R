@@ -1,12 +1,12 @@
 #### APPLY EXCLUSION CRITERIA TO KEYBOARD AND AFFECT DATA ####
 
+library(dplyr)
+library(tidyr)
+
 # load data sets
-keyboard_data_trait = readRDS("data/results/keyboard_data_trait.rds")
-
-
-keyboard_data_ema_centered = readRDS("data/results/keyboard_data_ema_centered.rds")
-keyboard_data_ema_pre60 = readRDS("data/results/keyboard_data_ema_pre60.rds")
-
+keyboard_data_trait <- readRDS("data/results/keyboard_data_trait.rds")
+keyboard_data_day   <- readRDS("data/results/keyboard_data_day.rds")
+keyboard_data_ema   <- readRDS("data/results/keyboard_data_ema.rds")
 
 ## fix smartphone changers
 
@@ -17,7 +17,6 @@ changers_map <- read.csv2("data/helper/Smartphonewechsel_20220608.csv") %>%
     id_3 = p_0001_2,
     id_4 = p_0001_3
   ) %>%
-  # Keep final_user_id plus all alternative IDs that belong to that person
   select(final_user_id, starts_with("id_")) %>%
   pivot_longer(
     cols = -final_user_id,
@@ -25,7 +24,6 @@ changers_map <- read.csv2("data/helper/Smartphonewechsel_20220608.csv") %>%
     values_to = "user_id",
     values_drop_na = TRUE
   ) %>%
-  # Drop cases where user_id already equals final (no-op mappings)
   filter(user_id != final_user_id) %>%
   select(user_id, final_user_id) %>%
   distinct() %>%
@@ -37,49 +35,61 @@ changers_map <- read.csv2("data/helper/Smartphonewechsel_20220608.csv") %>%
 ## apply merging
 
 # trait level
-
 keyboard_data_trait_cleaned <- keyboard_data_trait %>%
-  left_join(changers_map, by = "user_id") %>%
-  mutate(user_id = if_else(is.na(final_user_id), user_id, final_user_id)) %>%
-  select(-final_user_id) %>%
-  # if trait data can contain multiple rows per person after merging, collapse to 1
-  distinct(user_id, .keep_all = TRUE)
-
-# state level - ema centered 
-
-keyboard_data_ema_centered_cleaned <- keyboard_data_ema_centered %>%
+  mutate(user_id = as.character(user_id)) %>%
   left_join(changers_map, by = "user_id") %>%
   mutate(user_id = if_else(is.na(final_user_id), user_id, final_user_id)) %>%
   select(-final_user_id)
 
-# state level - pre60 ema 
-
-keyboard_data_ema_pre60_cleaned <- keyboard_data_ema_pre60 %>%
+# daily level
+keyboard_data_day_cleaned <- keyboard_data_day %>%
+  mutate(user_id = as.character(user_id)) %>%
   left_join(changers_map, by = "user_id") %>%
   mutate(user_id = if_else(is.na(final_user_id), user_id, final_user_id)) %>%
   select(-final_user_id)
 
+# momentary level
+keyboard_data_ema_cleaned <- keyboard_data_ema %>%
+  mutate(user_id = as.character(user_id)) %>%
+  left_join(changers_map, by = "user_id") %>%
+  mutate(user_id = if_else(is.na(final_user_id), user_id, final_user_id)) %>%
+  select(-final_user_id)
 
-## run some sanity checks
+## run sanity checks
 
 # Are there any mappings where multiple old IDs point to different finals? (should be no)
 changers_map %>%
   count(user_id) %>%
   filter(n > 1)
 
-# trait: exactly one row per participant
+# trait: should be at most one row per participant x scope
 keyboard_data_trait_cleaned %>%
-  count(user_id) %>%
+  count(user_id, scope) %>%
   filter(n > 1)
 
-# state: row count should remain identical (IDs just reassigned)
-stopifnot(nrow(keyboard_data_moment_ema_cleaned) == nrow(keyboard_data_moment_ema))
+# daily: should be at most one row per participant x date x scope
+keyboard_data_day_cleaned %>%
+  count(user_id, date, scope) %>%
+  filter(n > 1)
 
-## save data files 
+# momentary: row count should remain identical (IDs just reassigned)
+stopifnot(nrow(keyboard_data_ema_cleaned) == nrow(keyboard_data_ema))
 
-saveRDS(keyboard_data_trait_cleaned, "data/results/keyboard_data_trait_changers.rds") # trait
+## optional deduplication if changer reassignment created exact duplicates
 
-saveRDS(keyboard_data_ema_centered_cleaned, "data/results/keyboard_data_ema_centered_changers.rds") # es moment 
-saveRDS(keyboard_data_ema_pre60_cleaned, "data/results/keyboard_data_ema_pre60_changers.rds") # es moment 
+keyboard_data_trait_cleaned <- keyboard_data_trait_cleaned %>%
+  distinct()
+
+keyboard_data_day_cleaned <- keyboard_data_day_cleaned %>%
+  distinct()
+
+keyboard_data_ema_cleaned <- keyboard_data_ema_cleaned %>%
+  distinct()
+
+## save data files
+
+saveRDS(keyboard_data_trait_cleaned, "data/results/keyboard_data_trait_changers.rds")
+saveRDS(keyboard_data_day_cleaned,   "data/results/keyboard_data_day_changers.rds")
+saveRDS(keyboard_data_ema_cleaned,   "data/results/keyboard_data_ema_changers.rds")
 
 # finish

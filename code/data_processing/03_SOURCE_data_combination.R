@@ -1,65 +1,66 @@
-### COMBINE EXTRACTED KEYBOARD EATURES WITH AFFECT DATA ###
+### COMBINE EXTRACTED KEYBOARD FEATURES WITH AFFECT DATA ###
+
+library(dplyr)
+
+dir.create("data/results", recursive = TRUE, showWarnings = FALSE)
 
 ## Load demographics data from wave 1 
-wave1 = read.csv2("data/helper/wave1_2021_02_19.csv")
-demographics = wave1 %>% dplyr::select(p_0001, Demo_A1, Demo_GE1)
-colnames(demographics) = c("user_id", "age", "gender")
-demographics <- demographics[!duplicated(demographics), ] # remove duplicates
-demographics = demographics %>% mutate(user_id = as.character(user_id))
+wave1 <- read.csv2("data/helper/wave1_2021_02_19.csv")
+demographics <- wave1 %>%
+  dplyr::select(p_0001, Demo_A1, Demo_GE1)
 
-## load panas data
-panas_df = readRDS("data/helper/panas.RData")
-names(panas_df)[names(panas_df) == "p_0001"] <- "user_uuid" # rename column
-panas_df = panas_df %>% mutate(user_uuid = as.character(user_uuid))
+colnames(demographics) <- c("user_id", "age", "gender")
+demographics <- demographics[!duplicated(demographics), ]
+demographics <- demographics %>% mutate(user_id = as.character(user_id))
 
-## load ema data 
-ema_data = readRDS("data/ema/ema_data.rds") %>% mutate(user_id = as.character(user_id))
+## Load PANAS data
+panas_df <- readRDS("data/helper/panas.RData")
+names(panas_df)[names(panas_df) == "p_0001"] <- "user_uuid"
+panas_df <- panas_df %>% mutate(user_uuid = as.character(user_uuid))
 
-## load all keyboard data for different es time windows 
-keyboard_data_ema_centered <- data.frame() # initialize df
-keyboard_data_ema_pre180 <- data.frame() # initialize df
-keyboard_data_ema_pre60 <- data.frame() # initialize df
+## Load EMA data
+ema_data <- readRDS("data/ema/ema_data.rds") %>%
+  mutate(user_id = as.character(user_id))
 
-# es moment - ema centered and pre ema 
-for(file in list.files("data/results_temp/ema_centered/")){ # iterate through files
-  df1 = readRDS(paste0("data/results_temp/ema_centered/", file)) # load user df
-  df1 <- df1 %>%
-    mutate(user_id = as.character(sub("\\.rds$", "", file))) %>%
-    select(user_id, everything()) # add user_id
-  keyboard_data_ema_centered = dplyr::bind_rows(keyboard_data_ema_centered, df1) # append user data
+## Load daily EMA data
+ema_day <- readRDS("data/ema/ema_day.rds") %>%
+  mutate(
+    user_id = as.character(user_id),
+    date = as.Date(date)
+  )
+
+############################################################
+## 1) MOMENTARY-LEVEL DATA
+############################################################
+
+keyboard_data_ema <- data.frame()
+
+for (file in list.files("data/results_temp/ema/", full.names = TRUE)) {
+  df1 <- readRDS(file)
+  
+  # add user_id from filename only if not already there
+  if (!"user_id" %in% names(df1)) {
+    df1 <- df1 %>%
+      mutate(user_id = as.character(sub("\\.rds$", "", basename(file))))
+  } else {
+    df1 <- df1 %>% mutate(user_id = as.character(user_id))
+  }
+  
+  keyboard_data_ema <- dplyr::bind_rows(keyboard_data_ema, df1)
 }
 
-for(file in list.files("data/results_temp/ema_pre180/")){ # iterate through files
-  df1 = readRDS(paste0("data/results_temp/ema_pre180/", file)) # load user df
-  df1 <- df1 %>%
-    mutate(user_id = as.character(sub("\\.rds$", "", file))) %>%
-    select(user_id, everything()) # add user_id
-  keyboard_data_ema_pre = dplyr::bind_rows(keyboard_data_ema_pre, df1) # append user data
-}
-
-for(file in list.files("data/results_temp/ema_pre60/")){ # iterate through files
-  df1 = readRDS(paste0("data/results_temp/ema_pre60/", file)) # load user df
-  df1 <- df1 %>%
-    mutate(user_id = as.character(sub("\\.rds$", "", file))) %>%
-    select(user_id, everything()) # add user_id
-  keyboard_data_ema_pre60 = dplyr::bind_rows(keyboard_data_ema_pre60, df1) # append user data
-}
-
-# combine keyboard data and ema data and demographics
-keyboard_data_ema_centered = left_join(ema_data, demographics, by = "user_id", relationship = "many-to-one") %>% inner_join(keyboard_data_ema_centered, by = c ("es_questionnaire_id", "user_id"))
-keyboard_data_ema_pre180 = left_join(ema_data, demographics, by = "user_id", relationship = "many-to-one") %>% inner_join(keyboard_data_ema_pre180, by = c ("es_questionnaire_id", "user_id"))
-keyboard_data_ema_pre60 = left_join(ema_data, demographics, by = "user_id", relationship = "many-to-one") %>% inner_join(keyboard_data_ema_pre60, by = c ("es_questionnaire_id", "user_id"))
+# combine keyboard data with EMA data and demographics
+keyboard_data_ema <- ema_data %>%
+  left_join(demographics, by = "user_id", relationship = "many-to-one") %>%
+  inner_join(keyboard_data_ema, by = c("es_questionnaire_id", "user_id"))
 
 # drop irrelevant cols
-keyboard_data_ema_centered <- keyboard_data_ema_centered %>%
+keyboard_data_ema <- keyboard_data_ema %>%
   select(
     -c(
       notificationTimestamp,
       questionnaireStartedTimestamp,
       questionnaireEndedTimestamp,
-      arousal,
-      valence_avg,
-      arousal_avg,
       weekday,
       nr,
       date,
@@ -69,48 +70,70 @@ keyboard_data_ema_centered <- keyboard_data_ema_centered %>%
     )
   )
 
-keyboard_data_ema_pre60 <- keyboard_data_ema_pre60 %>%
-  select(
-    -c(
-      notificationTimestamp,
-      questionnaireStartedTimestamp,
-      questionnaireEndedTimestamp,
-      arousal,
-      valence_avg,
-      arousal_avg,
-      weekday,
-      nr,
-      date,
-      week,
-      arousal_diff,
-      valence_diff
-    )
-  )
+saveRDS(keyboard_data_ema, "data/results/keyboard_data_ema.rds")
 
-# save combined data sets 
-saveRDS(keyboard_data_ema_centered, "data/results/keyboard_data_ema_centered.rds") # es moment 
-saveRDS(keyboard_data_ema_pre180, "data/results/keyboard_data_ema_pre.rds") # es moment 
-saveRDS(keyboard_data_ema_pre60, "data/results/keyboard_data_ema_pre60.rds") # es moment 
+############################################################
+## 2) TRAIT-LEVEL DATA
+############################################################
 
-## combine all keyboard data with trait affect (panas) data
+keyboard_data_trait_raw <- data.frame()
 
-# initiate dfs
-keyboard_data = data.frame() 
-
-# fill dfs
-for (file.within in list.files(paste0("data/results_temp/all"))) {
-  df1 = readRDS(paste0("data/results_temp/all/", file.within)) # load user df
-  keyboard_data = dplyr::bind_rows(keyboard_data, df1) # append user df
+for (file in list.files("data/results_temp/all/", full.names = TRUE)) {
+  df1 <- readRDS(file)
+  
+  # add user_id from filename only if not already there
+  if (!"user_id" %in% names(df1)) {
+    df1 <- df1 %>%
+      mutate(user_id = as.character(sub("\\.rds$", "", basename(file))))
+  } else {
+    df1 <- df1 %>% mutate(user_id = as.character(user_id))
+  }
+  
+  keyboard_data_trait_raw <- dplyr::bind_rows(keyboard_data_trait_raw, df1)
 }
 
-# join keyboard data sets w demographics and trait affect data
-keyboard_data_trait = inner_join(panas_df, keyboard_data, by = "user_uuid") %>%
-  dplyr::left_join(demographics, by = c("user_uuid" = "user_id" ))  %>%
-  dplyr::select(user_uuid, age, gender, pa_panas, na_panas, everything()) %>%
-  dplyr::rename(user_id = user_uuid)
+# make sure join key matches PANAS
+keyboard_data_trait_raw <- keyboard_data_trait_raw %>%
+  mutate(user_uuid = as.character(user_id))
 
-# save combined data sets 
+keyboard_data_trait <- panas_df %>%
+  inner_join(keyboard_data_trait_raw, by = "user_uuid") %>%
+  left_join(demographics, by = c("user_uuid" = "user_id")) %>%
+  select(-any_of("user_id")) %>%
+  select(user_uuid, age, gender, pa_panas, na_panas, everything()) %>%
+  rename(user_id = user_uuid)
 
-saveRDS(keyboard_data_trait, "data/results/keyboard_data_trait.rds") 
+saveRDS(keyboard_data_trait, "data/results/keyboard_data_trait.rds")
+
+############################################################
+## 3) DAILY-LEVEL DATA
+############################################################
+
+keyboard_data_day <- data.frame()
+
+for (file in list.files("data/results_temp/day/", full.names = TRUE)) {
+  df1 <- readRDS(file)
+  
+  # add user_id from filename only if not already there
+  if (!"user_id" %in% names(df1)) {
+    df1 <- df1 %>%
+      mutate(user_id = as.character(sub("\\.rds$", "", basename(file))))
+  } else {
+    df1 <- df1 %>% mutate(user_id = as.character(user_id))
+  }
+  
+  keyboard_data_day <- dplyr::bind_rows(keyboard_data_day, df1)
+}
+
+# ensure date is Date
+keyboard_data_day <- keyboard_data_day %>%
+  mutate(date = as.Date(date))
+
+# combine daily keyboard data with daily EMA data and demographics
+keyboard_data_day <- ema_day %>%
+  left_join(demographics, by = "user_id", relationship = "many-to-one") %>%
+  inner_join(keyboard_data_day, by = c("user_id", "date"))
+
+saveRDS(keyboard_data_day, "data/results/keyboard_data_day.rds")
 
 ### continue with 04_SOURCE_smartphone_chnagers.R ###
