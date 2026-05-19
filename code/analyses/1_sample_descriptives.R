@@ -2,7 +2,7 @@
 #### PREPARATION ####
 ############################
 
-packages <- c("dplyr", "tidyr", "psych", "stringr", "ggplot")
+packages <- c("dplyr", "tidyr", "psych", "stringr", "ggplot2")
 invisible(lapply(packages, library, character.only = TRUE))
 
 keyboard_data_trait  <- readRDS("data/results/keyboard_data_trait_final.rds")
@@ -117,7 +117,7 @@ trait_all_volume     <- volume_desc(all_trait_sample)
 trait_private_sessions_mean <- mean(
   private_trait_sample$n_sessions, na.rm = TRUE)
 trait_private_sessions_sd   <- sd(
-  private_trait_sample$n_typing_sessions, na.rm = TRUE)
+  private_trait_sample$n_sessions, na.rm = TRUE)
 
 trait_public_sessions_mean  <- mean(
   public_trait_sample$n_sessions, na.rm = TRUE)

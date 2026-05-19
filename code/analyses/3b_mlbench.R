@@ -578,7 +578,7 @@ bmr_keyboardlanguage_moment   <- readRDS("results/bmr_keyboardlanguage_moment.rd
 bmr_keyboardlanguage_families <- readRDS("results/bmr_keyboardlanguage_feature_families.rds")
 bmr_keyboardlanguage_age      <- readRDS("results/bmr_keyboardlanguage_age.rds")
 
-mes_fig <- c(
+mes <- c(
   list(msr_pearson),
   msrs(c("regr.rsq", "regr.mae", "regr.rmse"))
 )

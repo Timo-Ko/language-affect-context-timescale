@@ -25,7 +25,7 @@ options(scipen = 999)
 
 # Helper functions
 source("code/data_processing/helper/aggregation.R")
-source("code/data_processing/helper/connectivity_preprocessing.R")
+#source("code/data_processing/helper/connectivity_preprocessing.R")
 source("code/data_processing/helper/ema_labels.R")
 source("code/data_processing/helper/fill_information_up.R")
 source("code/data_processing/helper/helper_JsonFormat.R")
@@ -182,9 +182,9 @@ ema_week <- ema_data %>%
 
 
 # save ema data
-saveRDS(ema_data, "data/results/ema/ema_data.rds")
-saveRDS(ema_day, "data/results/ema/ema_day.rds")
-saveRDS(ema_week, "data/results/ema/ema_week.rds")
+saveRDS(ema_data, "data/ema/ema_data.rds")
+saveRDS(ema_day, "data/ema/ema_day.rds")
+saveRDS(ema_week, "data/ema/ema_week.rds")
 
 ## load required helper data
 
