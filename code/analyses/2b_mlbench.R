@@ -1025,7 +1025,6 @@ write.csv(
   row.names = FALSE
 )
 
-
 #### CREATE FIG 3 #####
 
 base_theme <- theme_custom(base_size = 12) +
@@ -1057,7 +1056,41 @@ pred_plot_sum <- pred_folds_plot %>%
     grp = interaction(outcome, context, drop = TRUE)
   )
 
-pd <- position_dodge(width = 0.68)
+############################
+#### SIGNIFICANCE STARS FOR FIGURE 3
+############################
+
+p_to_stars <- function(p) {
+  dplyr::case_when(
+    is.na(p) ~ "",
+    p < .001 ~ "***",
+    p < .01  ~ "**",
+    p < .05  ~ "*",
+    TRUE     ~ ""
+  )
+}
+
+sig_df_fig3 <- perm_table %>%
+  mutate(
+    outcome = factor(
+      outcome,
+      levels = c("Age", "Trait NA", "Trait PA", "Daily valence", "Momentary valence")
+    ),
+    stars = p_to_stars(p_holm)
+  ) %>%
+  filter(stars != "") %>%
+  left_join(
+    pred_plot_sum %>%
+      filter(context %in% c("private", "public")) %>%
+      group_by(outcome) %>%
+      summarise(
+        y_pos = max(r_q75, r_md, na.rm = TRUE) + 0.08,
+        .groups = "drop"
+      ),
+    by = "outcome"
+  )
+
+pd <- position_dodge(width = 0.55)
 
 fig3_pred <- ggplot(
   pred_plot_sum,
@@ -1080,14 +1113,27 @@ fig3_pred <- ggplot(
       ymin = r_q25,
       ymax = r_q75
     ),
-    position = position_dodge(width = 0.55),
+    position = pd,
     linewidth = 0.85,
     alpha = 0.75
   ) +
   geom_point(
-    position = position_dodge(width = 0.55),
+    position = pd,
     size = 3.2,
     alpha = 0.95
+  ) +
+  geom_text(
+    data = sig_df_fig3,
+    aes(
+      x = outcome,
+      y = y_pos,
+      label = stars
+    ),
+    inherit.aes = FALSE,
+    size = 5.2,
+    fontface = "bold",
+    color = "black",
+    vjust = 0
   ) +
   scale_color_manual(
     values = context_cols,
@@ -1103,7 +1149,7 @@ fig3_pred <- ggplot(
     limits = c(-0.60, 0.80),
     breaks = seq(-0.60, 0.80, by = 0.20),
     labels = scales::label_number(accuracy = 0.01, trim = TRUE),
-    expand = expansion(mult = c(0.02, 0.03))
+    expand = expansion(mult = c(0.02, 0.06))
   ) +
   labs(
     x = NULL,
@@ -1125,6 +1171,5 @@ ggsave(
   height = 5.4,
   dpi = 300
 )
-
 
 # finish

@@ -563,9 +563,11 @@ fig_volume
 
 
 ggsave(
-  "figures/fig_volume_private_public.png",
+  "figures/fig2_volume_private_public.png",
   plot  = fig_volume,
   width = 9,
   height = 4,
   dpi   = 300
 )
+
+# finish

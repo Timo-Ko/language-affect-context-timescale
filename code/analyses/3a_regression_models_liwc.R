@@ -970,10 +970,10 @@ df_all_plot <- theory_context_results_all %>%
       label,
       levels = unname(theory_feature_labels[theory_features])
     ),
-    sig_ci = if_else(
+    ci_zero = if_else(
       conf.low > 0 | conf.high < 0,
-      "CI excludes 0",
-      "CI includes 0"
+      "95% CI excludes 0",
+      "95% CI includes 0"
     )
   )
 
@@ -991,7 +991,11 @@ feature_order_main <- feature_order_main[
 
 df_all_plot <- df_all_plot %>%
   mutate(
-    label = factor(label, levels = feature_order_main)
+    label = factor(label, levels = feature_order_main),
+    ci_zero = factor(
+      ci_zero,
+      levels = c("95% CI includes 0", "95% CI excludes 0")
+    )
   )
 
 # Optional: create wide data for private-public differences,
@@ -1044,10 +1048,10 @@ fig_dictionary_all_timescales <- ggplot(
   geom_linerange(
     aes(
       ymin = conf.low,
-      ymax = conf.high
+      ymax = conf.high,
+      linewidth = ci_zero,
+      alpha = ci_zero
     ),
-    linewidth = 0.65,
-    alpha = 0.35,
     position = pd_context
   ) +
   
@@ -1075,6 +1079,20 @@ fig_dictionary_all_timescales <- ggplot(
   scale_shape_manual(
     values = context_shapes,
     name = "Context"
+  ) +
+  scale_linewidth_manual(
+    values = c(
+      "95% CI includes 0" = 0.45,
+      "95% CI excludes 0" = 1.05
+    ),
+    guide = "none"
+  ) +
+  scale_alpha_manual(
+    values = c(
+      "95% CI includes 0" = 0.30,
+      "95% CI excludes 0" = 0.90
+    ),
+    guide = "none"
   ) +
   
   scale_y_continuous(
@@ -1125,11 +1143,11 @@ fig_dictionary_all_timescales <- ggplot(
   guides(
     color = guide_legend(
       order = 1,
-      override.aes = list(size = 3.2, alpha = 1)
+      override.aes = list(size = 3.2, alpha = 1, linewidth = 0.8)
     ),
     shape = guide_legend(
       order = 1,
-      override.aes = list(size = 3.2, alpha = 1)
+      override.aes = list(size = 3.2, alpha = 1, linewidth = 0.8)
     )
   )
 
@@ -1150,7 +1168,13 @@ write.csv(
   row.names = FALSE
 )
 
+write.csv(
+  df_all_plot %>% filter(ci_zero == "95% CI excludes 0"),
+  "results/figure_4_dictionary_theory_all_timescales_ci_excludes_zero.csv",
+  row.names = FALSE
+)
 
+# finish
 ############################
 #### 10) SUPPLEMENT:
 #### THEORY-GUIDED DAILY AND MOMENTARY MODELS
@@ -1260,7 +1284,6 @@ write.csv(
 )
 
 
-
 ############################
 #### 11) SUPPLEMENT FIGURE:
 #### THEORY-GUIDED DAILY + MOMENTARY
@@ -1357,17 +1380,7 @@ if (nrow(state_theory_plot_df) > 0) {
     dpi = 300
   )
   
-  ggsave(
-    filename = "figures/supp_dictionary_theory_daily_momentary_associations.pdf",
-    plot = fig_dictionary_state_supp,
-    width = 7.2,
-    height = 6.8
-  )
 }
-
-
-
-
 
 ############################
 #### 12) SUPPLEMENT:
@@ -1651,12 +1664,6 @@ if (nrow(top_liwc_trait_plot_df) > 0) {
     dpi = 300
   )
   
-  ggsave(
-    filename = "figures/supp_top_all_liwc_trait_associations.pdf",
-    plot = fig_supp_top_liwc_trait,
-    width = 7.4,
-    height = 7.8
-  )
 }
 
 ############################
