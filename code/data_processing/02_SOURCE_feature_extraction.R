@@ -288,4 +288,4 @@ write(paste0(Sys.time(), ": JOB FINISHED"), file = log_file, append = TRUE)
 # # Stop the parallel backend after completing the tasks
 # stopImplicitCluster()
 
-### Continue with 03_SOURCE_feature_combination.R ###
+### Continue with 03_SOURCE_data_combination.R ###

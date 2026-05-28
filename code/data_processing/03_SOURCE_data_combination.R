@@ -136,4 +136,6 @@ keyboard_data_day <- ema_day %>%
 
 saveRDS(keyboard_data_day, "data/results/keyboard_data_day.rds")
 
-### continue with 04_SOURCE_smartphone_chnagers.R ###
+
+
+### continue with 04_SOURCE_smartphone_changers.R ###

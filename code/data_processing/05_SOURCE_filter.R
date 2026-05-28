@@ -85,20 +85,17 @@ day_comp %>%
 emoji_df     <- readRDS("data/helper/emoji_df.rds")
 emoticons_df <- readRDS("data/helper/emoticons_df.rds")
 
-# IMPORTANT:
-# derive rarity from the trait-filtered dataset, not the unfiltered one
-# this aligns prevalence estimates with the actual analysis sample
 
 ## emoji features
 
-emoji_cols <- grep("^emoji_\\d+_session_mean$", names(keyboard_data_trait_filter), value = TRUE)
+emoji_cols <- grep("^emoji_\\d+_share$", names(keyboard_data_trait_filter), value = TRUE)
 
 proportion_emoji_used <- sapply(keyboard_data_trait_filter[emoji_cols], function(column) {
   sum(!is.na(column) & column != 0) / nrow(keyboard_data_trait_filter)
 })
 
 proportion_emoji_df <- data.frame(
-  variable_name = sub("_session_mean", "", names(proportion_emoji_used)),
+  variable_name = sub("_share", "", names(proportion_emoji_used)),
   proportion_used = proportion_emoji_used
 )
 
@@ -110,11 +107,11 @@ emoji_df_extended <- merge(
 )
 
 rare_emoji <- emoji_df_extended[emoji_df_extended$proportion_used < 0.10, ]$variable_name
-rare_emoji <- paste0(rare_emoji, "_session_mean")
+rare_emoji <- paste0(rare_emoji, "_share")
 
 ## emoticon features
 
-emoticon_cols <- grep("^emoticon_.*_session_mean$", names(keyboard_data_trait_filter), value = TRUE)
+emoticon_cols <- grep("^emoticon_.*_share$", names(keyboard_data_trait_filter), value = TRUE)
 
 proportion_emoticon_used <- sapply(keyboard_data_trait_filter[emoticon_cols], function(column) {
   sum(!is.na(column) & column != 0) / nrow(keyboard_data_trait_filter)
@@ -144,3 +141,146 @@ saveRDS(keyboard_data_day_cleaned,   "data/results/keyboard_data_day_final.rds")
 saveRDS(keyboard_data_ema_cleaned,   "data/results/keyboard_data_ema_final.rds")
 
 ### processing and feature extraction completed ###
+
+
+############################
+#### FEATURE COUNTS FOR INITIALLY EXTRACTED FEATURE SETS ####
+############################
+
+library(dplyr)
+library(stringr)
+
+dir.create("results", recursive = TRUE, showWarnings = FALSE)
+
+count_initial_feature_families <- function(data, no_feature_columns, dataset_name = "dataset") {
+  
+  # Keep only columns that are potential keyboard-derived predictors
+  feature_cols <- setdiff(names(data), no_feature_columns)
+  
+  # Word dictionary features
+  dictionary_features <- feature_cols[
+    str_detect(feature_cols, "^liwc_|^wordsentiment")
+  ]
+  
+  # Emoji and emoticon features
+  emoji_features <- feature_cols[
+    str_detect(feature_cols, "^emoji_|^emoticon_|^senti_emoji")
+  ]
+  
+  # Typing dynamics / behavioral production features
+  typing_features <- setdiff(
+    feature_cols,
+    c(dictionary_features, emoji_features)
+  )
+  
+  summary_out <- tibble(
+    dataset = dataset_name,
+    total_extracted_features = length(feature_cols),
+    word_dictionary_features = length(dictionary_features),
+    emoji_emoticon_features = length(emoji_features),
+    typing_dynamics_features = length(typing_features)
+  )
+  
+  feature_list_out <- tibble(
+    dataset = dataset_name,
+    feature = sort(feature_cols),
+    feature_family = case_when(
+      feature %in% dictionary_features ~ "Word dictionaries",
+      feature %in% emoji_features ~ "Emojis/emoticons",
+      feature %in% typing_features ~ "Typing dynamics",
+      TRUE ~ "Unclassified"
+    )
+  )
+  
+  return(list(
+    summary = summary_out,
+    feature_list = feature_list_out,
+    dictionary_features = sort(dictionary_features),
+    emoji_features = sort(emoji_features),
+    typing_features = sort(typing_features)
+  ))
+}
+
+# no feeature columns
+
+no_feature_columns_trait_initial <- c(
+  "user_id",
+  "age",
+  "gender",
+  "pa_panas",
+  "na_panas"
+)
+
+no_feature_columns_day_initial <- c(
+  "user_id",
+  "age",
+  "gender",
+  "date",
+  "valence",
+  "arousal",
+  "n_ema",
+  "mean_valence",
+  "mean_arousal"
+)
+
+no_feature_columns_moment_initial <- c(
+  "user_id",
+  "age",
+  "gender",
+  "es_questionnaire_id",
+  "timestamp",
+  "valence",
+  "arousal",
+  "stress"
+)
+
+
+############################
+#### COUNT INITIAL EXTRACTED FEATURES ####
+############################
+
+trait_initial_counts <- count_initial_feature_families(
+  data = keyboard_data_trait_cleaned,
+  no_feature_columns = no_feature_columns_trait_initial,
+  dataset_name = "Trait"
+)
+
+day_initial_counts <- count_initial_feature_families(
+  data = keyboard_data_day_cleaned,
+  no_feature_columns = no_feature_columns_day_initial,
+  dataset_name = "Daily"
+)
+
+moment_initial_counts <- count_initial_feature_families(
+  data = keyboard_data_ema_cleaned,
+  no_feature_columns = no_feature_columns_moment_initial,
+  dataset_name = "Momentary"
+)
+
+initial_feature_count_table <- bind_rows(
+  trait_initial_counts$summary,
+  day_initial_counts$summary,
+  moment_initial_counts$summary
+)
+
+print(initial_feature_count_table)
+
+write.csv(
+  initial_feature_count_table,
+  file = "results/initial_extracted_feature_counts.csv",
+  row.names = FALSE
+)
+
+initial_feature_list <- bind_rows(
+  trait_initial_counts$feature_list,
+  day_initial_counts$feature_list,
+  moment_initial_counts$feature_list
+)
+
+write.csv(
+  initial_feature_list,
+  file = "results/initial_extracted_feature_list_by_dataset.csv",
+  row.names = FALSE
+)
+
+# finish
