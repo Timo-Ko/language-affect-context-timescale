@@ -51,12 +51,12 @@ keyboard_data_moment_ema_ml <- target_independent_preproc(
 
 # save data
 
-saveRDS(keyboard_data_trait_ml, "data/keyboard_data_trait_ml.rds")
-saveRDS(keyboard_data_day_ml, "data/keyboard_data_day_ml.rds")
-saveRDS(keyboard_data_moment_ema_ml, "data/keyboard_data_ema_ml.rds")
+saveRDS(keyboard_data_trait_ml, "data/results/keyboard_data_trait_ml.rds")
+saveRDS(keyboard_data_day_ml, "data/results/keyboard_data_day_ml.rds")
+saveRDS(keyboard_data_moment_ema_ml, "data/results/keyboard_data_ema_ml.rds")
 
 ############################
-#### FEATURE COUNTS ####
+#### FEATURE COUNTS FOR FINAL FEATURE SETS ####
 ############################
 
 count_feature_families <- function(data, no_feature_columns, dataset_name = "dataset") {

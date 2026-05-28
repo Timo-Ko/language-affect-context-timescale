@@ -764,7 +764,6 @@ if (is.finite(median_ratio) && abs(median_ratio - 1) > 0.10) {
     "; inspect results/supp_volume_matched_word_count_diagnostics.csv."
   )
 }
-
 ############################
 #### 7) SUMMARISE PERFORMANCE ####
 ############################
@@ -784,27 +783,28 @@ performance_by_iteration <- performance_by_iteration %>%
       condition,
       levels = c("Original private", "Matched private", "Public")
     ),
-    outcome = factor(outcome, levels = c("Trait PA", "Trait NA")),
-    learner = factor(learner, levels = c("FL", "RF", "EN"))
+    outcome = factor(
+      outcome,
+      levels = c("Trait PA", "Trait NA")
+    ),
+    learner = factor(
+      learner,
+      levels = c("FL", "RF", "EN")
+    )
   ) %>%
   arrange(iteration, outcome, condition, learner)
 
+# Summary across matching iterations.
+# Original private and public were benchmarked once and therefore have n_iterations = 1.
+# Matched private was benchmarked once per matching iteration.
 performance_summary <- performance_by_iteration %>%
   group_by(outcome, condition, learner) %>%
   summarise(
     n_iterations = n_distinct(iteration),
-    mean_r_md = mean(r_md, na.rm = TRUE),
     median_r_md = median(r_md, na.rm = TRUE),
-    r_md_q025 = safe_quantile(r_md, 0.025),
     r_md_q25 = safe_quantile(r_md, 0.25),
     r_md_q75 = safe_quantile(r_md, 0.75),
-    r_md_q975 = safe_quantile(r_md, 0.975),
-    mean_r_q25 = mean(r_q25, na.rm = TRUE),
-    mean_r_q75 = mean(r_q75, na.rm = TRUE),
-    mean_r_sd = mean(r_sd, na.rm = TRUE),
     mean_pearson_coverage = mean(pearson_coverage, na.rm = TRUE),
-    median_rsq_md = median(rsq_md, na.rm = TRUE),
-    median_mae_md = median(mae_md, na.rm = TRUE),
     mean_achieved_word_ratio = mean(mean_word_ratio, na.rm = TRUE),
     median_achieved_word_ratio = median(median_word_ratio, na.rm = TRUE),
     .groups = "drop"
@@ -812,30 +812,111 @@ performance_summary <- performance_by_iteration %>%
   arrange(outcome, condition, learner)
 
 ############################
-#### 8) SAVE OUTPUTS ####
+#### 7.5) CREATE TABLE S3:
+#### TEXT-VOLUME MATCHED TRAIT PREDICTION
+############################
+
+fmt_median_iqr <- function(md, q25, q75, digits = 2) {
+  ifelse(
+    is.na(md) | is.na(q25) | is.na(q75),
+    NA_character_,
+    paste0(
+      formatC(md, format = "f", digits = digits),
+      " [",
+      formatC(q25, format = "f", digits = digits),
+      ", ",
+      formatC(q75, format = "f", digits = digits),
+      "]"
+    )
+  )
+}
+
+table_s3_volume_matched <- performance_summary %>%
+  filter(
+    learner == "RF",
+    outcome %in% c("Trait PA", "Trait NA"),
+    condition %in% c("Original private", "Matched private", "Public")
+  ) %>%
+  mutate(
+    `Outcome variable` = case_when(
+      outcome == "Trait PA" ~ "Trait positive affect",
+      outcome == "Trait NA" ~ "Trait negative affect",
+      TRUE ~ as.character(outcome)
+    ),
+    Context = case_when(
+      condition %in% c("Original private", "Matched private") ~ "Private",
+      condition == "Public" ~ "Public",
+      TRUE ~ as.character(condition)
+    ),
+    `Text volume` = case_when(
+      condition == "Original private" ~ "Full",
+      condition == "Matched private" ~ "Matched to public",
+      condition == "Public" ~ "Full",
+      TRUE ~ as.character(condition)
+    ),
+    `Median r [IQR]` = fmt_median_iqr(
+      median_r_md,
+      r_md_q25,
+      r_md_q75,
+      digits = 2
+    ),
+    outcome_order = factor(
+      `Outcome variable`,
+      levels = c("Trait positive affect", "Trait negative affect")
+    ),
+    context_order = factor(
+      Context,
+      levels = c("Private", "Public")
+    ),
+    volume_order = case_when(
+      Context == "Private" & `Text volume` == "Full" ~ 1,
+      Context == "Private" & `Text volume` == "Matched to public" ~ 2,
+      Context == "Public" & `Text volume` == "Full" ~ 3,
+      TRUE ~ 99
+    )
+  ) %>%
+  arrange(outcome_order, volume_order) %>%
+  select(
+    `Outcome variable`,
+    Context,
+    `Text volume`,
+    `Median r [IQR]`
+  )
+
+write.csv(
+  table_s3_volume_matched,
+  "results/table_s3_text_volume_matched_trait_prediction.csv",
+  row.names = FALSE,
+  na = ""
+)
+
+table_s3_volume_matched
+
+############################
+#### 8) SAVE REPOSITORY OUTPUTS ####
 ############################
 
 write.csv(
   performance_by_iteration,
-  "results/supp_volume_matched_prediction_performance_by_iteration.csv",
+  "results/repository_volume_matched_prediction_performance_by_iteration.csv",
   row.names = FALSE
 )
 
 write.csv(
   performance_summary,
-  "results/supp_volume_matched_prediction_performance_summary.csv",
+  "results/repository_volume_matched_prediction_performance_summary.csv",
   row.names = FALSE
 )
 
 write.csv(
   word_count_diagnostics,
-  "results/supp_volume_matched_word_count_diagnostics.csv",
+  "results/repository_volume_matched_word_count_diagnostics.csv",
   row.names = FALSE
 )
 
 write.csv(
   feature_log,
-  "results/supp_volume_matched_feature_diagnostics.csv",
+  "results/repository_volume_matched_feature_diagnostics.csv",
   row.names = FALSE
 )
 
@@ -843,6 +924,11 @@ saveRDS(
   list(
     bmr_by_iteration = if (store_bmr) bmr_all else NULL,
     score_by_fold = score_all_df,
+    performance_by_iteration = performance_by_iteration,
+    performance_summary = performance_summary,
+    table_s3 = table_s3_volume_matched,
+    word_count_diagnostics = word_count_diagnostics,
+    feature_log = feature_log,
     settings = list(
       B = B,
       session_dir = session_dir,
@@ -851,181 +937,14 @@ saveRDS(
       minimum_trait_words = minimum_trait_words,
       store_bmr_objects = store_bmr,
       resampling = "repeated_cv: folds = 10, repeats = 5",
-      learners = c("regr.featureless", "imputeoor.regr.ranger", "imputehist.regr.cv_glmnet")
+      learners = c(
+        "regr.featureless",
+        "imputeoor.regr.ranger",
+        "imputehist.regr.cv_glmnet"
+      )
     )
   ),
   "results/bmr_volume_matched_private_trait.rds"
 )
-
-############################
-#### 9) PLOTS ####
-############################
-
-condition_cols <- c(
-  "Original private" = "#E69F00",
-  "Matched private" = "#B36B00",
-  "Public" = "#56B4E9"
-)
-
-condition_order <- c("Original private", "Matched private", "Public")
-
-plot_perf <- performance_by_iteration %>%
-  filter(learner == "RF") %>%
-  mutate(
-    condition = factor(condition, levels = condition_order),
-    outcome = factor(outcome, levels = c("Trait PA", "Trait NA"))
-  )
-
-plot_matched <- plot_perf %>%
-  filter(condition == "Matched private")
-
-plot_static <- plot_perf %>%
-  group_by(outcome, condition) %>%
-  summarise(
-    r_md = median(r_md, na.rm = TRUE),
-    r_q25 = median(r_q25, na.rm = TRUE),
-    r_q75 = median(r_q75, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  filter(condition %in% c("Original private", "Public"))
-
-fig_perf <- ggplot() +
-  geom_hline(
-    yintercept = 0,
-    linetype = "dashed",
-    color = "gray70",
-    linewidth = 0.45
-  ) +
-  geom_boxplot(
-    data = plot_matched,
-    aes(x = condition, y = r_md, fill = condition, color = condition),
-    width = 0.45,
-    alpha = 0.25,
-    outlier.shape = NA
-  ) +
-  geom_jitter(
-    data = plot_matched,
-    aes(x = condition, y = r_md, color = condition),
-    width = 0.08,
-    height = 0,
-    size = 1.4,
-    alpha = 0.35
-  ) +
-  geom_linerange(
-    data = plot_static,
-    aes(x = condition, ymin = r_q25, ymax = r_q75, color = condition),
-    linewidth = 0.9
-  ) +
-  geom_point(
-    data = plot_static,
-    aes(x = condition, y = r_md, color = condition, fill = condition),
-    size = 3.0,
-    shape = 21,
-    stroke = 0.8
-  ) +
-  facet_wrap(~ outcome, nrow = 1) +
-  scale_color_manual(values = condition_cols, guide = "none") +
-  scale_fill_manual(values = condition_cols, guide = "none") +
-  scale_y_continuous(
-    labels = scales::label_number(accuracy = 0.01, trim = TRUE),
-    expand = expansion(mult = c(0.08, 0.12))
-  ) +
-  labs(
-    x = NULL,
-    y = "Median Pearson correlation"
-  ) +
-  theme_custom(base_size = 12) +
-  theme(
-    axis.text.x = element_text(angle = 25, hjust = 1),
-    strip.text = element_text(face = "bold"),
-    plot.margin = margin(8, 10, 6, 8)
-  )
-
-ggsave(
-  filename = "figures/supp_volume_matched_prediction_performance.png",
-  plot = fig_perf,
-  width = 7.2,
-  height = 4.8,
-  dpi = 300
-)
-
-word_count_plot_df <- word_count_diagnostics %>%
-  group_by(user_id) %>%
-  summarise(
-    public_words = first(public_words),
-    matched_private_words = median(matched_private_words, na.rm = TRUE),
-    word_ratio = median(word_ratio, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-median_ratio_label <- paste0(
-  "Median ratio = ",
-  scales::number(median(word_count_plot_df$word_ratio, na.rm = TRUE), accuracy = 0.01)
-)
-
-fig_word_diag <- ggplot(
-  word_count_plot_df,
-  aes(x = public_words, y = matched_private_words)
-) +
-  geom_abline(
-    slope = 1,
-    intercept = 0,
-    linetype = "dashed",
-    color = "gray55",
-    linewidth = 0.6
-  ) +
-  geom_point(
-    color = "#B36B00",
-    fill = "#E69F00",
-    shape = 21,
-    size = 2.2,
-    alpha = 0.75
-  ) +
-  annotate(
-    "text",
-    x = Inf,
-    y = -Inf,
-    label = median_ratio_label,
-    hjust = 1.05,
-    vjust = -0.8,
-    size = 3.5
-  ) +
-  scale_x_log10(labels = scales::comma) +
-  scale_y_log10(labels = scales::comma) +
-  labs(
-    x = "Public words",
-    y = "Matched private words"
-  ) +
-  theme_custom(base_size = 12) +
-  theme(
-    plot.margin = margin(8, 12, 8, 8)
-  )
-
-ggsave(
-  filename = "figures/supp_volume_matched_word_count_diagnostics.png",
-  plot = fig_word_diag,
-  width = 5.8,
-  height = 5.2,
-  dpi = 300
-)
-
-############################
-#### 10) PRINT SUMMARY ####
-############################
-
-compact_summary <- performance_summary %>%
-  filter(learner == "RF") %>%
-  transmute(
-    outcome,
-    condition,
-    median_r = round(median_r_md, 3),
-    q25 = round(r_md_q25, 3),
-    q75 = round(r_md_q75, 3),
-    coverage = round(mean_pearson_coverage, 3),
-    median_word_ratio = round(median_achieved_word_ratio, 3)
-  )
-
-print(compact_summary, n = Inf)
-
 
 # finish
