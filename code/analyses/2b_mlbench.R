@@ -25,8 +25,6 @@ packages <- c(
 invisible(lapply(packages, library, character.only = TRUE))
 
 source("code/analyses/helper/plot_theme.R")
-source("code/analyses/helper/msr_pearson.R")
-
 
 set.seed(123, kind = "L'Ecuyer")
 
@@ -429,7 +427,7 @@ lrn_rr <- lrn("regr.cv_glmnet", alpha = 0.5)
 #### 6) RESAMPLING ####
 ############################
 
-resampling <- rsmp("repeated_cv", folds = 10L, repeats = 5L)
+resampling <- rsmp("repeated_cv", folds = 5L, repeats = 20L)
 
 ############################
 #### 7) PREPROCESSING IN CV ####

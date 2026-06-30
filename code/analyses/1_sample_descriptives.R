@@ -52,7 +52,7 @@ text_share_trait_summary <- text_share_trait %>%
     )
   )
 
-# Optional: same calculation restricted to participants with both private and public data
+# same calculation restricted to participants with both private and public data
 text_share_trait_both_contexts <- text_share_trait %>%
   filter(!is.na(private), !is.na(public), !is.na(all))
 

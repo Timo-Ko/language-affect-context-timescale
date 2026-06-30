@@ -23,6 +23,7 @@ dir.create("results", recursive = TRUE, showWarnings = FALSE)
 dir.create("figures", recursive = TRUE, showWarnings = FALSE)
 
 source("code/analyses/helper/plot_theme.R")
+source("code/analyses/helper/msr_pearson.R")
 
 ############################
 #### 1) LOAD BENCHMARK RESULTS
