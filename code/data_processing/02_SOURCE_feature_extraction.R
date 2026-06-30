@@ -71,7 +71,7 @@ keyboard_feature_extraction <- function(user) {
           dplyr::coalesce(character_count_altered, 0)
       )
     
-    required_cols <- c("words_typed", "action_category")
+    required_cols <- c("words_typed", "action_category", "date")
     missing_cols <- setdiff(required_cols, names(keyboard_data))
     
     if (length(missing_cols) > 0) {
@@ -92,6 +92,46 @@ keyboard_feature_extraction <- function(user) {
     
     if (!"user_uuid" %in% names(keyboard_data)) keyboard_data$user_uuid <- user
     
+    # Count days with language using the same context definition as
+    # extract_keyboard_features()
+    trait_language_days <- bind_rows(
+      
+      # All language
+      keyboard_data %>%
+        filter(
+          !is.na(date),
+          words_typed >= 1
+        ) %>%
+        summarise(
+          scope = "all",
+          n_language_days = n_distinct(date)
+        ),
+      
+      # Private language
+      keyboard_data %>%
+        filter(
+          !is.na(date),
+          words_typed >= 1,
+          action_category %in% c("Messaging")
+        ) %>%
+        summarise(
+          scope = "private",
+          n_language_days = n_distinct(date)
+        ),
+      
+      # Public language
+      keyboard_data %>%
+        filter(
+          !is.na(date),
+          words_typed >= 1,
+          action_category %in% c("Posting", "Commenting")
+        ) %>%
+        summarise(
+          scope = "public",
+          n_language_days = n_distinct(date)
+        )
+    )
+    
     keyboard_features_all <- extract_keyboard_features(
       keyboard_data = keyboard_data,
       window_identifier = "user_uuid",
@@ -106,94 +146,103 @@ keyboard_feature_extraction <- function(user) {
     
     # save features
     
-    trait_out <- dplyr::bind_rows(keyboard_features_all, keyboard_features_all_context) %>%
-      mutate(user_id = user)
+    trait_out <- bind_rows(
+      keyboard_features_all,
+      keyboard_features_all_context
+    ) %>%
+      mutate(user_id = user) %>%
+      left_join(
+        trait_language_days,
+        by = "scope"
+      ) %>%
+      relocate(n_language_days, .after = scope) %>%
+      relocate(user_id, .before = user_uuid)
     
     if (is.data.frame(trait_out) && nrow(trait_out) > 0) {
       saveRDS(trait_out, file.path("data/results_temp/all", paste0(user, ".rds")))
     }
     
-    ## Day
-    
-    # subset day-level EMA data to user
-    ema_day_user <- ema_day %>%
-      filter(user_id == user)
-    
-    if (nrow(ema_day_user) > 0) {
-      
-      # keep only keyboard records from days with at least one EMA valence report
-      keyboard_data_day <- keyboard_data %>%
-        filter(date %in% ema_day_user$date)
-      
-      # only proceed if there is any keyboard data on EMA days
-      if (nrow(keyboard_data_day) > 0 && sum(keyboard_data_day$words_typed, na.rm = TRUE) > 0) {
-        
-        keyboard_features_day_all <- extract_keyboard_features(
-          keyboard_data = keyboard_data_day,
-          window_identifier = "date",
-          filter_var = "all"
-        )
-        
-        keyboard_features_day_context <- extract_keyboard_features(
-          keyboard_data = keyboard_data_day,
-          window_identifier = "date",
-          filter_var = c("private", "public")
-        )
-        
-        day_out <- dplyr::bind_rows(
-          keyboard_features_day_all,
-          keyboard_features_day_context
-        )
-        
-        if (is.data.frame(day_out) && nrow(day_out) > 0) {
-          # keep user id explicitly for later merges
-          day_out <- day_out %>%
-            mutate(user_id = user)
-          
-          saveRDS(day_out, file.path("data/results_temp/day", paste0(user, ".rds")))
-        }
-        
-      }
-    }
+    # ## Day
+    # 
+    # # subset day-level EMA data to user
+    # ema_day_user <- ema_day %>%
+    #   filter(user_id == user)
+    # 
+    # if (nrow(ema_day_user) > 0) {
+    #   
+    #   # keep only keyboard records from days with at least one EMA valence report
+    #   keyboard_data_day <- keyboard_data %>%
+    #     filter(date %in% ema_day_user$date)
+    #   
+    #   # only proceed if there is any keyboard data on EMA days
+    #   if (nrow(keyboard_data_day) > 0 && sum(keyboard_data_day$words_typed, na.rm = TRUE) > 0) {
+    #     
+    #     keyboard_features_day_all <- extract_keyboard_features(
+    #       keyboard_data = keyboard_data_day,
+    #       window_identifier = "date",
+    #       filter_var = "all"
+    #     )
+    #     
+    #     keyboard_features_day_context <- extract_keyboard_features(
+    #       keyboard_data = keyboard_data_day,
+    #       window_identifier = "date",
+    #       filter_var = c("private", "public")
+    #     )
+    #     
+    #     day_out <- dplyr::bind_rows(
+    #       keyboard_features_day_all,
+    #       keyboard_features_day_context
+    #     )
+    #     
+    #     if (is.data.frame(day_out) && nrow(day_out) > 0) {
+    #       # keep user id explicitly for later merges
+    #       day_out <- day_out %>%
+    #         mutate(user_id = user)
+    #       
+    #       saveRDS(day_out, file.path("data/results_temp/day", paste0(user, ".rds")))
+    #     }
+    #     
+    #   }
+    # }
   
-    ## Moment
-    
-    # subset ema data to user
-    es_user <- ema_data %>% filter(user_id == user) %>% ungroup()
-    
-    if (nrow(es_user) == 0) {
-      write(paste0(Sys.time(), ": INFO: user ", user, " – no ema data; skipping EMA extraction"),
-            file = log_file, append = TRUE)
-    } else {
-      
-      keyboard_data_ema <- label_ema_in_keyboard(keyboard_data, es_user, 60, 0)
-      keyboard_data_ema <- keyboard_data_ema %>% filter(!is.na(es_questionnaire_id))
-      
-      if (nrow(keyboard_data_ema) == 0 || sum(keyboard_data_ema$words_typed, na.rm = TRUE) < 1) {
-        write(paste0(Sys.time(), ": INFO: user ", user, " – no usable keyboard data in EMA windows"),
-              file = log_file, append = TRUE)
-      } else {
-        
-        keyboard_features_ema <- extract_keyboard_features(
-          keyboard_data = keyboard_data_ema,
-          window_identifier = "es_questionnaire_id",
-          filter_var = "all"
-        )
-        
-        keyboard_features_ema_context <- extract_keyboard_features(
-          keyboard_data = keyboard_data_ema,
-          window_identifier = "es_questionnaire_id",
-          filter_var = c("private", "public")
-        )
-        
-        ema_out <- dplyr::bind_rows(keyboard_features_ema, keyboard_features_ema_context) %>%
-          mutate(user_id = user)
-        
-        if (is.data.frame(ema_out) && nrow(ema_out) > 0) {
-          saveRDS(ema_out, file.path("data/results_temp/ema", paste0(user, ".rds")))
-        }
-      }
-    }
+    # ## Moment
+    # 
+    # # subset ema data to user
+    # es_user <- ema_data %>% filter(user_id == user) %>% ungroup()
+    # 
+    # if (nrow(es_user) == 0) {
+    #   write(paste0(Sys.time(), ": INFO: user ", user, " – no ema data; skipping EMA extraction"),
+    #         file = log_file, append = TRUE)
+    # } else {
+    #   
+    #   keyboard_data_ema <- label_ema_in_keyboard(keyboard_data, es_user, 60, 0)
+    #   keyboard_data_ema <- keyboard_data_ema %>% filter(!is.na(es_questionnaire_id))
+    #   
+    #   if (nrow(keyboard_data_ema) == 0 || sum(keyboard_data_ema$words_typed, na.rm = TRUE) < 1) {
+    #     write(paste0(Sys.time(), ": INFO: user ", user, " – no usable keyboard data in EMA windows"),
+    #           file = log_file, append = TRUE)
+    #   } else {
+    #     
+    #     keyboard_features_ema <- extract_keyboard_features(
+    #       keyboard_data = keyboard_data_ema,
+    #       window_identifier = "es_questionnaire_id",
+    #       filter_var = "all"
+    #     )
+    #     
+    #     keyboard_features_ema_context <- extract_keyboard_features(
+    #       keyboard_data = keyboard_data_ema,
+    #       window_identifier = "es_questionnaire_id",
+    #       filter_var = c("private", "public")
+    #     )
+    #     
+    #     ema_out <- dplyr::bind_rows(keyboard_features_ema, keyboard_features_ema_context) %>%
+    #       mutate(user_id = user)
+    #     
+    #     if (is.data.frame(ema_out) && nrow(ema_out) > 0) {
+    #       saveRDS(ema_out, file.path("data/results_temp/ema", paste0(user, ".rds")))
+    #     }
+    #   }
+    # }
     # ---- logging ----
     t2 <- Sys.time()
     processing_time <- round(as.numeric(difftime(t2, t1, units = "mins")), 2)
@@ -213,13 +262,14 @@ keyboard_feature_extraction <- function(user) {
 
 ############ Execute Feature Extraction Function #############
 
+# empty directories
 unlink("data/results_temp/all", recursive = TRUE)
-unlink("data/results_temp/day", recursive = TRUE)
-unlink("data/results_temp/ema", recursive = TRUE)
+# unlink("data/results_temp/day", recursive = TRUE)
+# unlink("data/results_temp/ema", recursive = TRUE)
 
 dir.create("data/results_temp/all", recursive = TRUE, showWarnings = FALSE)
-dir.create("data/results_temp/day", recursive = TRUE, showWarnings = FALSE)
-dir.create("data/results_temp/ema", recursive = TRUE, showWarnings = FALSE)
+# dir.create("data/results_temp/day", recursive = TRUE, showWarnings = FALSE)
+# dir.create("data/results_temp/ema", recursive = TRUE, showWarnings = FALSE)
 
 write(paste0(Sys.time(), ": Starting sequential extraction for ", length(users), " users"),
       file = log_file, append = TRUE)
