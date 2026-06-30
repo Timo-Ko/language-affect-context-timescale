@@ -1,12 +1,230 @@
 #### FILTER AND NORMALIZE EMOJI AND EMOTICON FEATURES ####
 
 library(dplyr)
+library(tidyr)
 library(psych)
+library(stringr)
+
+dir.create("results", recursive = TRUE, showWarnings = FALSE)
 
 # load data sets
 keyboard_data_trait <- readRDS("data/results/keyboard_data_trait_changers.rds")   # trait
 keyboard_data_day   <- readRDS("data/results/keyboard_data_day_changers.rds")     # daily
 keyboard_data_ema   <- readRDS("data/results/keyboard_data_ema_changers.rds")     # momentary
+
+############################################################
+## SAMPLE DESCRIPTIVES BEFORE FILTERING
+############################################################
+
+summarise_unfiltered_sample <- function(
+  data,
+  dataset_name,
+  word_threshold,
+  additional_filter = rep(TRUE, nrow(data))
+) {
+  
+  data_temp <- data %>%
+    ungroup() %>%
+    mutate(
+      communication_context = scope,
+      passes_word_filter = words_typed >= word_threshold,
+      passes_additional_filter = replace_na(
+        as.logical(additional_filter),
+        FALSE
+      ),
+      retained = passes_word_filter & passes_additional_filter
+    )
+  
+  summarise_group <- function(x, context_label) {
+    
+    day_counts <- if (dataset_name == "Trait") {
+      
+      x %>%
+        distinct(user_id, n_language_days) %>%
+        pull(n_language_days)
+      
+    } else if (dataset_name == "Daily") {
+      
+      x %>%
+        distinct(user_id, date) %>%
+        count(user_id, name = "n_days") %>%
+        pull(n_days)
+      
+    } else {
+      
+      numeric(0)
+    }
+    
+    tibble(
+      dataset = dataset_name,
+      communication_context = context_label,
+      
+      n_observations = nrow(x),
+      n_participants = n_distinct(x$user_id, na.rm = TRUE),
+      
+      n_participant_days = if (length(day_counts) > 0) {
+        sum(day_counts, na.rm = TRUE)
+      } else {
+        NA_real_
+      },
+      
+      mean_days_per_participant = if (length(day_counts) > 0) {
+        mean(day_counts, na.rm = TRUE)
+      } else {
+        NA_real_
+      },
+      
+      sd_days_per_participant = if (length(day_counts) > 1) {
+        sd(day_counts, na.rm = TRUE)
+      } else {
+        NA_real_
+      },
+      
+      total_words = sum(x$words_typed, na.rm = TRUE),
+      mean_words = mean(x$words_typed, na.rm = TRUE),
+      sd_words = sd(x$words_typed, na.rm = TRUE),
+      median_words = median(x$words_typed, na.rm = TRUE),
+      min_words = min(x$words_typed, na.rm = TRUE),
+      max_words = max(x$words_typed, na.rm = TRUE),
+      
+      n_below_word_threshold = sum(
+        x$words_typed < word_threshold,
+        na.rm = TRUE
+      ),
+      pct_below_word_threshold = 100 * mean(
+        x$words_typed < word_threshold,
+        na.rm = TRUE
+      ),
+      
+      n_pass_word_filter = sum(
+        x$passes_word_filter,
+        na.rm = TRUE
+      ),
+      pct_pass_word_filter = 100 * mean(
+        x$passes_word_filter,
+        na.rm = TRUE
+      ),
+      
+      n_retained = sum(
+        x$retained,
+        na.rm = TRUE
+      ),
+      pct_retained = 100 * mean(
+        x$retained,
+        na.rm = TRUE
+      ),
+      
+      n_dropped = sum(
+        !x$retained,
+        na.rm = TRUE
+      ),
+      pct_dropped = 100 * mean(
+        !x$retained,
+        na.rm = TRUE
+      )
+    )
+  }
+  
+  data_temp %>%
+    group_split(communication_context) %>%
+    lapply(function(x) {
+      summarise_group(
+        x,
+        context_label = unique(x$communication_context)
+      )
+    }) %>%
+    bind_rows()
+}
+
+############################################################
+## TRAIT-LEVEL UNFILTERED SAMPLE
+############################################################
+
+trait_unfiltered_descriptives <- summarise_unfiltered_sample(
+  data = keyboard_data_trait,
+  dataset_name = "Trait",
+  word_threshold = 100
+)
+
+############################################################
+## DAILY-LEVEL UNFILTERED SAMPLE
+############################################################
+
+daily_unfiltered_descriptives <- summarise_unfiltered_sample(
+  data = keyboard_data_day,
+  dataset_name = "Daily",
+  word_threshold = 10,
+  additional_filter = keyboard_data_day$n_ema_day >= 3
+)
+
+############################################################
+## MOMENTARY-LEVEL UNFILTERED SAMPLE
+############################################################
+
+momentary_unfiltered_descriptives <- summarise_unfiltered_sample(
+  data = keyboard_data_ema,
+  dataset_name = "Momentary",
+  word_threshold = 10
+)
+
+
+############################################################
+## COMBINE AND SAVE MAIN DESCRIPTIVES
+############################################################
+
+unfiltered_sample_descriptives <- bind_rows(
+  trait_unfiltered_descriptives,
+  daily_unfiltered_descriptives,
+  momentary_unfiltered_descriptives
+)
+
+print(
+  unfiltered_sample_descriptives,
+  width = Inf,
+  n = Inf
+)
+
+write.csv(
+  unfiltered_sample_descriptives,
+  file = "results/unfiltered_sample_descriptives.csv",
+  row.names = FALSE
+)
+
+
+############################################################
+## DAILY FILTER-FAILURE BREAKDOWN
+############################################################
+
+daily_filter_breakdown <- keyboard_data_day %>%
+  ungroup() %>%
+  mutate(
+    passes_word_filter = words_typed >= 10,
+    passes_ema_filter = n_ema_day >= 3,
+    filter_status = case_when(
+      passes_word_filter & passes_ema_filter ~
+        "Retained",
+      !passes_word_filter & passes_ema_filter ~
+        "Dropped: insufficient words only",
+      passes_word_filter & !passes_ema_filter ~
+        "Dropped: insufficient EMAs only",
+      TRUE ~
+        "Dropped: insufficient words and EMAs"
+    )
+  ) %>%
+  count(scope, filter_status, name = "n_observations") %>%
+  group_by(scope) %>%
+  mutate(
+    percentage = 100 * n_observations / sum(n_observations)
+  ) %>%
+  ungroup()
+
+print(daily_filter_breakdown)
+
+write.csv(
+  daily_filter_breakdown,
+  file = "results/daily_filter_failure_breakdown.csv",
+  row.names = FALSE
+)
 
 ############################################################
 ## APPLY WORD-COUNT FILTERS
@@ -82,21 +300,30 @@ day_comp %>%
 ## DROP RARE EMOJI AND EMOTICON FEATURES
 ############################################################
 
-emoji_df     <- readRDS("data/helper/emoji_df.rds")
-emoticons_df <- readRDS("data/helper/emoticons_df.rds")
+emoji_df <- readRDS("data/helper/emoji_df.rds")
 
+# Use one row per participant, aggregated across all communication
+keyboard_data_trait_symbol_reference <- keyboard_data_trait_filter %>%
+  filter(scope == "all")
 
-## emoji features
+## Emoji features
 
-emoji_cols <- grep("^emoji_\\d+_share$", names(keyboard_data_trait_filter), value = TRUE)
+emoji_cols <- grep(
+  "^emoji_\\d+_share$",
+  names(keyboard_data_trait_symbol_reference),
+  value = TRUE
+)
 
-proportion_emoji_used <- sapply(keyboard_data_trait_filter[emoji_cols], function(column) {
-  sum(!is.na(column) & column != 0) / nrow(keyboard_data_trait_filter)
-})
+proportion_emoji_used <- sapply(
+  keyboard_data_trait_symbol_reference[emoji_cols],
+  function(column) {
+    mean(!is.na(column) & column != 0)
+  }
+)
 
 proportion_emoji_df <- data.frame(
-  variable_name = sub("_share", "", names(proportion_emoji_used)),
-  proportion_used = proportion_emoji_used
+  variable_name = sub("_share$", "", names(proportion_emoji_used)),
+  proportion_used = as.numeric(proportion_emoji_used)
 )
 
 emoji_df_extended <- merge(
@@ -106,20 +333,34 @@ emoji_df_extended <- merge(
   all.x = TRUE
 )
 
-rare_emoji <- emoji_df_extended[emoji_df_extended$proportion_used < 0.10, ]$variable_name
-rare_emoji <- paste0(rare_emoji, "_share")
+rare_emoji <- emoji_df_extended %>%
+  filter(
+    !is.na(proportion_used),
+    proportion_used < 0.10
+  ) %>%
+  pull(variable_name) %>%
+  paste0("_share")
 
-## emoticon features
+## Emoticon features
 
-emoticon_cols <- grep("^emoticon_.*_share$", names(keyboard_data_trait_filter), value = TRUE)
+emoticon_cols <- grep(
+  "^emoticon_.*_share$",
+  names(keyboard_data_trait_symbol_reference),
+  value = TRUE
+)
 
-proportion_emoticon_used <- sapply(keyboard_data_trait_filter[emoticon_cols], function(column) {
-  sum(!is.na(column) & column != 0) / nrow(keyboard_data_trait_filter)
-})
+proportion_emoticon_used <- sapply(
+  keyboard_data_trait_symbol_reference[emoticon_cols],
+  function(column) {
+    mean(!is.na(column) & column != 0)
+  }
+)
 
-rare_emoticons <- names(proportion_emoticon_used)[as.numeric(proportion_emoticon_used) < 0.10]
+rare_emoticons <- names(proportion_emoticon_used)[
+  proportion_emoticon_used < 0.10
+]
 
-## drop rare symbols from all final datasets
+## Drop rare symbols from all final datasets
 
 rare_symbols <- union(rare_emoji, rare_emoticons)
 
@@ -146,11 +387,6 @@ saveRDS(keyboard_data_ema_cleaned,   "data/results/keyboard_data_ema_final.rds")
 ############################
 #### FEATURE COUNTS FOR INITIALLY EXTRACTED FEATURE SETS ####
 ############################
-
-library(dplyr)
-library(stringr)
-
-dir.create("results", recursive = TRUE, showWarnings = FALSE)
 
 count_initial_feature_families <- function(data, no_feature_columns, dataset_name = "dataset") {
   
@@ -205,6 +441,9 @@ count_initial_feature_families <- function(data, no_feature_columns, dataset_nam
 
 no_feature_columns_trait_initial <- c(
   "user_id",
+  "user_uuid",
+  "scope",
+  "n_language_days",
   "age",
   "gender",
   "pa_panas",
@@ -213,25 +452,29 @@ no_feature_columns_trait_initial <- c(
 
 no_feature_columns_day_initial <- c(
   "user_id",
-  "age",
-  "gender",
+  "user_uuid",
+  "scope",
   "date",
-  "valence",
-  "arousal",
-  "n_ema",
-  "mean_valence",
-  "mean_arousal"
+  "daily_valence",
+  "n_ema_day",
+  "age",
+  "gender"
 )
 
 no_feature_columns_moment_initial <- c(
   "user_id",
-  "age",
-  "gender",
+  "user_uuid",
+  "scope",
   "es_questionnaire_id",
-  "timestamp",
-  "valence",
   "arousal",
-  "stress"
+  "valence",
+  "valence_avg",
+  "arousal_avg",
+  "notificationTimestamp_corrected",
+  "questionnaireStartedTimestamp_corrected",
+  "questionnaireEndedTimestamp_corrected",
+  "age",
+  "gender"
 )
 
 
