@@ -309,7 +309,12 @@ coef_by_context_lm <- function(model, term, vcov_mat, conf = 0.95) {
   )
 }
 
-fit_trait_dictionary_model <- function(data, outcome, feature) {
+fit_trait_dictionary_model <- function(
+  data,
+  outcome,
+  feature,
+  require_both_contexts = FALSE
+) {
   feat_z <- paste0(feature, "_z")
   
   dat <- data %>%
@@ -322,6 +327,16 @@ fit_trait_dictionary_model <- function(data, outcome, feature) {
     mutate(
       context = factor(context, levels = c("private", "public"))
     )
+  
+  if (require_both_contexts) {
+    dat <- dat %>%
+      group_by(user_id) %>%
+      filter(
+        n_distinct(context) == 2,
+        n() == 2
+      ) %>%
+      ungroup()
+  }
   
   if (
     nrow(dat) < 30 ||
@@ -687,7 +702,13 @@ extract_state_interaction_results <- function(fit, outcome, feature) {
 #### 7) RUN MODELS
 ############################
 
-run_context_models <- function(data, outcomes, features, model_family) {
+run_context_models <- function(
+  data,
+  outcomes,
+  features,
+  model_family,
+  require_both_contexts = FALSE
+) {
   bind_rows(lapply(outcomes, function(outcome_i) {
     bind_rows(lapply(features, function(feature_i) {
       
@@ -704,10 +725,11 @@ run_context_models <- function(data, outcomes, features, model_family) {
           feature = feature_i
         )
       } else {
-        fit_i <- fit_state_dictionary_model(
+        fit_i <- fit_trait_dictionary_model(
           data = data,
           outcome = outcome_i,
-          feature = feature_i
+          feature = feature_i,
+          require_both_contexts = require_both_contexts
         )
         
         extract_state_context_results(
@@ -853,6 +875,70 @@ write.csv(
   "results/theory_guided_liwc_context_interaction_results.csv",
   row.names = FALSE
 )
+
+############################
+#### TRAIT BOTH-CONTEXT SENSITIVITY ANALYSIS
+############################
+
+# Restrict each outcome-feature model to participants with usable
+# private and public observations for that specific model.
+
+theory_trait_context_both <- run_context_models(
+  data = keyboard_data_trait_z,
+  outcomes = trait_outcomes,
+  features = theory_features,
+  model_family = "trait",
+  require_both_contexts = TRUE
+) %>%
+  left_join(theory_feature_lookup, by = "feature") %>%
+  mutate(
+    timescale = "Trait",
+    sensitivity_sample = "Both contexts",
+    context_label = nice_context(context),
+    outcome_label = nice_outcome_label(outcome)
+  ) %>%
+  group_by(outcome, context) %>%
+  mutate(
+    p_fdr = p.adjust(p.value, method = "BH")
+  ) %>%
+  ungroup() %>%
+  arrange(outcome_label, feature_label, context)
+
+theory_trait_interactions_both <- run_interaction_models(
+  data = keyboard_data_trait_z,
+  outcomes = trait_outcomes,
+  features = theory_features,
+  model_family = "trait",
+  require_both_contexts = TRUE
+) %>%
+  left_join(theory_feature_lookup, by = "feature") %>%
+  mutate(
+    timescale = "Trait",
+    sensitivity_sample = "Both contexts",
+    outcome_label = nice_outcome_label(outcome)
+  ) %>%
+  group_by(outcome) %>%
+  mutate(
+    p_fdr = p.adjust(p.value, method = "BH")
+  ) %>%
+  ungroup() %>%
+  arrange(outcome_label, feature_label)
+
+write.csv(
+  theory_trait_context_both,
+  "results/sensitivity_trait_both_contexts_context_specific_results.csv",
+  row.names = FALSE
+)
+
+write.csv(
+  theory_trait_interactions_both,
+  "results/sensitivity_trait_both_contexts_interaction_results.csv",
+  row.names = FALSE
+)
+
+print(theory_trait_context_both)
+print(theory_trait_interactions_both)
+
 
 ############################
 #### 8) FIGURE 4
