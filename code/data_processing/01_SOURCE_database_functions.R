@@ -25,7 +25,6 @@ options(scipen = 999)
 
 # Helper functions
 source("code/data_processing/helper/aggregation.R")
-#source("code/data_processing/helper/connectivity_preprocessing.R")
 source("code/data_processing/helper/ema_labels.R")
 source("code/data_processing/helper/fill_information_up.R")
 source("code/data_processing/helper/helper_JsonFormat.R")
@@ -47,23 +46,35 @@ source("code/data_processing/keyboard_features/keyboard_preprocessing.R")
 
 ## connect to databases in which the keyboard and experience sampling data are stored
 
+get_required_env <- function(name) {
+  value <- Sys.getenv(name, unset = NA_character_)
+  if (is.na(value) || value == "") {
+    stop("Missing required environment variable: ", name, call. = FALSE)
+  }
+  value
+}
+
+db_port <- as.integer(Sys.getenv("PHONESTUDY_DB_PORT", unset = "3306"))
+
 # Sensing database
-phonestudy = dbConnect(
+phonestudy <- DBI::dbConnect(
   drv = RMariaDB::MariaDB(),
-  username = "rstudio",
-  password = rstudioapi::askForPassword("Enter your password"),
-  host = 'mc-ibt01.unisg.ch',
-  port = 3306,
-  dbname = "ssps")
+  username = get_required_env("PHONESTUDY_DB_USER"),
+  password = get_required_env("PHONESTUDY_DB_PASSWORD"),
+  host = get_required_env("PHONESTUDY_DB_HOST"),
+  port = db_port,
+  dbname = get_required_env("PHONESTUDY_SENSING_DB")
+)
 
 # Keyboard database
-keyboard = dbConnect(
+keyboard <- DBI::dbConnect(
   drv = RMariaDB::MariaDB(),
-  username = "rstudio",
-  password = rstudioapi::askForPassword("Enter your password"),
-  host = 'mc-ibt01.unisg.ch',
-  port = 3306,
-  dbname = "researchime")
+  username = get_required_env("PHONESTUDY_DB_USER"),
+  password = get_required_env("PHONESTUDY_DB_PASSWORD"),
+  host = get_required_env("PHONESTUDY_DB_HOST"),
+  port = db_port,
+  dbname = get_required_env("PHONESTUDY_KEYBOARD_DB")
+)
 
 ## Load experience sampling data
 

@@ -50,7 +50,7 @@ minimum_trait_words <- 100
 #### 1) READ REFERENCE DATA ####
 ############################
 
-reference_ml_path <- "data/keyboard_data_trait_ml.rds"
+reference_ml_path <- "data/results/keyboard_data_trait_ml.rds"
 
 if (!file.exists(reference_ml_path)) {
   stop(
