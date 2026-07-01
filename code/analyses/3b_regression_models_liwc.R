@@ -716,7 +716,8 @@ run_context_models <- function(
         fit_i <- fit_trait_dictionary_model(
           data = data,
           outcome = outcome_i,
-          feature = feature_i
+          feature = feature_i,
+          require_both_contexts = require_both_contexts
         )
         
         extract_trait_context_results(
@@ -725,11 +726,10 @@ run_context_models <- function(
           feature = feature_i
         )
       } else {
-        fit_i <- fit_trait_dictionary_model(
+        fit_i <- fit_state_dictionary_model(
           data = data,
           outcome = outcome_i,
-          feature = feature_i,
-          require_both_contexts = require_both_contexts
+          feature = feature_i
         )
         
         extract_state_context_results(
@@ -742,7 +742,13 @@ run_context_models <- function(
   }))
 }
 
-run_interaction_models <- function(data, outcomes, features, model_family) {
+run_interaction_models <- function(
+  data,
+  outcomes,
+  features,
+  model_family,
+  require_both_contexts = FALSE
+) {
   bind_rows(lapply(outcomes, function(outcome_i) {
     bind_rows(lapply(features, function(feature_i) {
       
@@ -750,7 +756,8 @@ run_interaction_models <- function(data, outcomes, features, model_family) {
         fit_i <- fit_trait_dictionary_model(
           data = data,
           outcome = outcome_i,
-          feature = feature_i
+          feature = feature_i,
+          require_both_contexts = require_both_contexts
         )
         
         extract_trait_interaction_results(

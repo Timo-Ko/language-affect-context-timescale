@@ -189,8 +189,7 @@ if (file.exists("data/helper/DE-LIWC2015.rimealiases")) {
   liwc.names <- readr::read_delim(
     "data/helper/DE-LIWC2015.rimealiases",
     delim = "\t",
-    col_names = c("LIWC.cat", "C.cat"),
-    show_col_types = FALSE
+    col_names = c("LIWC.cat", "C.cat")
   )
   liwc.names <- dplyr::bind_rows(
     liwc.names,
@@ -532,8 +531,8 @@ run_trait_benchmark <- function(condition_data, iteration, task_features) {
   lrn_rf <- po("imputeoor") %>>% lrn("regr.ranger", num.trees = 1000)
   lrn_rr <- po("imputehist") %>>% lrn("regr.cv_glmnet", alpha = 0.5)
   
-  # This matches the final main ML script: 10-fold CV repeated 5 times.
-  resampling <- rsmp("repeated_cv", folds = 10L, repeats = 5L)
+  # This matches the final main ML script: 5-fold CV repeated 20 times.
+  resampling <- rsmp("repeated_cv", folds = 5L, repeats = 20L)
   
   bmgrid <- benchmark_grid(
     task = tasks,

@@ -16,20 +16,52 @@ keyboard_data_ema   <- readRDS("data/results/keyboard_data_ema_final.rds")
 
 # define the columns that are not features (here preprocessing is not applied)
 no_feature_columns_trait <- c(
-  "user_id", "age", "gender", "pa_panas", "na_panas", "scope"
+  "user_id",
+  "scope",
+  "age",
+  "gender",
+  "pa_panas",
+  "na_panas",
+  "n_language_days",
+  "words_typed",
+  "emoji_count",
+  "emoticon_count",
+  "n_sessions",
+  "chars_typed",
+  "session_duration"
 )
 
 no_feature_columns_day <- c(
-  "user_id", "date", "daily_valence", "n_ema_day", "age", "gender", "scope"
+  "user_id",
+  "date",
+  "daily_valence",
+  "n_ema_day",
+  "age",
+  "gender",
+  "scope",
+  "n_sessions",
+  "words_typed",
+  "chars_typed",
+  "session_duration"
 )
 
 no_feature_columns_moment <- c(
-  "user_id", "es_questionnaire_id", "arousal", "valence",
-  "valence_avg", "arousal_avg",
+  "user_id",
+  "es_questionnaire_id",
+  "arousal",
+  "valence",
+  "valence_avg",
+  "arousal_avg",
   "notificationTimestamp_corrected",
   "questionnaireStartedTimestamp_corrected",
   "questionnaireEndedTimestamp_corrected",
-  "age", "gender", "scope"
+  "age",
+  "gender",
+  "scope",
+  "n_sessions",
+  "words_typed",
+  "chars_typed",
+  "session_duration"
 )
 
 # apply functions for target-independent preprocessing

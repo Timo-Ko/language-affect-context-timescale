@@ -106,29 +106,39 @@ stopifnot(nrow(day_duplicates_after_mapping) == 0)
 stopifnot(nrow(keyboard_data_ema_cleaned) == nrow(keyboard_data_ema))
 
 ############################
-#### COLLAPSE TRAIT DUPLICATES ####
+#### COLLAPSE TRAIT DUPLICATES
 ############################
 
-# Smartphone-change handling creates duplicated trait-level rows for user 770.
-# We collapse duplicated user_id x scope rows.
-# Count variables are summed.
-# Stable person-level variables are filled from the non-missing row.
-# Numeric feature variables that differ across duplicated rows are weighted by words_typed.
-
 first_non_missing <- function(x) {
-  x <- x[!is.na(x)]
-  if (length(x) == 0) return(NA)
-  x[1]
+  x_nonmissing <- x[!is.na(x)]
+  
+  if (length(x_nonmissing) == 0L) {
+    return(x[NA_integer_][1])
+  }
+  
+  x_nonmissing[[1]]
 }
 
 weighted_mean_safe <- function(x, w) {
   valid <- !is.na(x) & !is.na(w) & w > 0
   
-  if (sum(valid) == 0) {
-    return(mean(x, na.rm = TRUE))
+  if (any(valid)) {
+    return(
+      weighted.mean(
+        x[valid],
+        w[valid],
+        na.rm = TRUE
+      )
+    )
   }
   
-  weighted.mean(x[valid], w[valid], na.rm = TRUE)
+  x_nonmissing <- x[!is.na(x)]
+  
+  if (length(x_nonmissing) == 0L) {
+    return(NA_real_)
+  }
+  
+  mean(x_nonmissing)
 }
 
 sum_vars <- c(
@@ -138,17 +148,52 @@ sum_vars <- c(
   "n_sessions"
 )
 
-sum_vars_present <- intersect(sum_vars, names(keyboard_data_trait_cleaned))
+stable_person_vars <- c(
+  "pa_panas",
+  "na_panas",
+  "age",
+  "gender"
+)
+
+sum_vars_present <- intersect(
+  sum_vars,
+  names(keyboard_data_trait_cleaned)
+)
+
+stable_person_vars_present <- intersect(
+  stable_person_vars,
+  names(keyboard_data_trait_cleaned)
+)
+
+feature_vars <- setdiff(
+  names(keyboard_data_trait_cleaned),
+  c(
+    "user_id",
+    "scope",
+    ".weight_words",
+    sum_vars_present,
+    stable_person_vars_present
+  )
+)
 
 keyboard_data_trait_cleaned <- keyboard_data_trait_cleaned %>%
+  mutate(
+    .weight_words = words_typed
+  ) %>%
   group_by(user_id, scope) %>%
   summarise(
     across(
       all_of(sum_vars_present),
       ~ sum(.x, na.rm = TRUE)
     ),
+    
     across(
-      setdiff(names(keyboard_data_trait_cleaned), c("user_id", "scope", sum_vars_present)),
+      all_of(stable_person_vars_present),
+      first_non_missing
+    ),
+    
+    across(
+      all_of(feature_vars),
       ~ {
         x <- .x
         
@@ -156,13 +201,17 @@ keyboard_data_trait_cleaned <- keyboard_data_trait_cleaned %>%
           return(first_non_missing(x))
         }
         
-        if (n_distinct(x[!is.na(x)]) <= 1) {
+        if (n_distinct(x[!is.na(x)]) <= 1L) {
           return(first_non_missing(x))
         }
         
-        weighted_mean_safe(x, .data$words_typed)
+        weighted_mean_safe(
+          x = x,
+          w = .weight_words
+        )
       }
     ),
+    
     .groups = "drop"
   )
 

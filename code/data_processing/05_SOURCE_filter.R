@@ -13,7 +13,7 @@ keyboard_data_day   <- readRDS("data/results/keyboard_data_day_changers.rds")   
 keyboard_data_ema   <- readRDS("data/results/keyboard_data_ema_changers.rds")     # momentary
 
 ############################################################
-## SAMPLE DESCRIPTIVES BEFORE FILTERING
+## SAMPLE DESCRIPTIVES BEFORE WORD THRESHOLD FILTERS
 ############################################################
 
 summarise_unfiltered_sample <- function(
@@ -301,12 +301,15 @@ day_comp %>%
 ############################################################
 
 emoji_df <- readRDS("data/helper/emoji_df.rds")
+emoticons_df <- readRDS("data/helper/emoticons_df.rds")
 
 # Use one row per participant, aggregated across all communication
 keyboard_data_trait_symbol_reference <- keyboard_data_trait_filter %>%
   filter(scope == "all")
 
+############################
 ## Emoji features
+############################
 
 emoji_cols <- grep(
   "^emoji_\\d+_share$",
@@ -322,16 +325,19 @@ proportion_emoji_used <- sapply(
 )
 
 proportion_emoji_df <- data.frame(
-  variable_name = sub("_share$", "", names(proportion_emoji_used)),
+  variable_name = sub(
+    "_share$",
+    "",
+    names(proportion_emoji_used)
+  ),
   proportion_used = as.numeric(proportion_emoji_used)
 )
 
-emoji_df_extended <- merge(
-  emoji_df,
-  proportion_emoji_df,
-  by = "variable_name",
-  all.x = TRUE
-)
+emoji_df_extended <- emoji_df %>%
+  left_join(
+    proportion_emoji_df,
+    by = "variable_name"
+  )
 
 rare_emoji <- emoji_df_extended %>%
   filter(
@@ -341,7 +347,9 @@ rare_emoji <- emoji_df_extended %>%
   pull(variable_name) %>%
   paste0("_share")
 
+############################
 ## Emoticon features
+############################
 
 emoticon_cols <- grep(
   "^emoticon_.*_share$",
@@ -356,13 +364,43 @@ proportion_emoticon_used <- sapply(
   }
 )
 
-rare_emoticons <- names(proportion_emoticon_used)[
-  proportion_emoticon_used < 0.10
-]
+proportion_emoticon_df <- data.frame(
+  variable_name = sub(
+    "_share$",
+    "",
+    names(proportion_emoticon_used)
+  ),
+  proportion_used = as.numeric(proportion_emoticon_used)
+)
 
-## Drop rare symbols from all final datasets
+emoticons_df_extended <- emoticons_df %>%
+  mutate(
+    variable_name = paste0(
+      "emoticon_",
+      emoticon_name
+    )
+  ) %>%
+  left_join(
+    proportion_emoticon_df,
+    by = "variable_name"
+  )
 
-rare_symbols <- union(rare_emoji, rare_emoticons)
+rare_emoticons <- emoticons_df_extended %>%
+  filter(
+    !is.na(proportion_used),
+    proportion_used < 0.10
+  ) %>%
+  pull(variable_name) %>%
+  paste0("_share")
+
+############################
+## Drop rare symbols
+############################
+
+rare_symbols <- union(
+  rare_emoji,
+  rare_emoticons
+)
 
 keyboard_data_trait_cleaned <- keyboard_data_trait_filter %>%
   select(-any_of(rare_symbols))
@@ -372,6 +410,36 @@ keyboard_data_day_cleaned <- keyboard_data_day_filter %>%
 
 keyboard_data_ema_cleaned <- keyboard_data_ema_filter %>%
   select(-any_of(rare_symbols))
+
+############################
+## Sanity checks
+############################
+
+stopifnot(
+  all(rare_emoji %in% emoji_cols),
+  all(rare_emoticons %in% emoticon_cols),
+  !any(rare_symbols %in% names(keyboard_data_trait_cleaned)),
+  !any(rare_symbols %in% names(keyboard_data_day_cleaned)),
+  !any(rare_symbols %in% names(keyboard_data_ema_cleaned))
+)
+
+symbol_filter_summary <- tibble(
+  symbol_type = c("Emoji", "Emoticon"),
+  n_available = c(
+    length(emoji_cols),
+    length(emoticon_cols)
+  ),
+  n_rare_dropped = c(
+    length(rare_emoji),
+    length(rare_emoticons)
+  ),
+  n_retained = c(
+    length(emoji_cols) - length(rare_emoji),
+    length(emoticon_cols) - length(rare_emoticons)
+  )
+)
+
+symbol_filter_summary
 
 ############################################################
 ## SAVE FILTERED + CLEANED DATA FILES
