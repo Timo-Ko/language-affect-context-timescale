@@ -179,17 +179,6 @@ all_liwc_feature_lookup <- tibble(
   feature_label = all_liwc_features
 )
 
-write.csv(
-  theory_feature_lookup,
-  "results/theory_guided_liwc_feature_lookup.csv",
-  row.names = FALSE
-)
-
-write.csv(
-  all_liwc_feature_lookup,
-  "results/all_liwc_share_feature_lookup.csv",
-  row.names = FALSE
-)
 
 ############################
 #### 4) PREPARE ANALYSIS DATA

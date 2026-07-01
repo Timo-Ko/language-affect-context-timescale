@@ -434,7 +434,7 @@ family_results_long <- score_families %>%
     context = nice_context(task_id),
     feature_family = case_when(
       str_detect(task_id, regex("_word$", ignore_case = TRUE)) ~ "Word dictionaries",
-      str_detect(task_id, regex("_emoji$", ignore_case = TRUE)) ~ "Emojis",
+      str_detect(task_id, regex("_emoji$", ignore_case = TRUE)) ~ "Emojis and emoticons",
       str_detect(task_id, regex("_typing$", ignore_case = TRUE)) ~ "Typing dynamics",
       TRUE ~ "Other"
     )
@@ -462,7 +462,7 @@ table_s4 <- family_results_sum %>%
       feature_family,
       levels = c(
         "Word dictionaries",
-        "Emojis",
+        "Emojis and emoticons",
         "Typing dynamics"
       )
     ),
