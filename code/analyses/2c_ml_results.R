@@ -333,7 +333,6 @@ write.csv(
 ############################
 
 fig3_outcome_order <- c(
-  "Age",
   "Trait negative affect",
   "Trait positive affect",
   "Daily affective valence",
@@ -416,7 +415,6 @@ fig3_pred <- ggplot(
   ) +
   scale_x_discrete(
     labels = c(
-      "Age" = "Age",
       "Trait negative affect" = "Trait\nnegative\naffect",
       "Trait positive affect" = "Trait\npositive\naffect",
       "Daily affective valence" = "Daily\naffective\nvalence",
@@ -424,8 +422,8 @@ fig3_pred <- ggplot(
     )
   ) +
   scale_y_continuous(
-    limits = c(-0.60, 0.80),
-    breaks = seq(-0.60, 0.80, by = 0.20),
+    limits = c(-0.40, 0.40),
+    breaks = seq(-0.40, 0.40, by = 0.10),
     labels = scales::label_number(accuracy = 0.01, trim = TRUE),
     expand = expansion(mult = c(0.02, 0.06))
   ) +

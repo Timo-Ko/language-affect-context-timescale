@@ -102,7 +102,7 @@ ema_preproc_timestamps = function(ema_data, sensing_data){
   ema_data$nr = 1:nrow(ema_data) 
   
   # create date column
-  ema_data$date <- lubridate::date(ema_data$questionnaireStartedTimestamp)
+  ema_data$date <- lubridate::date(ema_data$questionnaireStartedTimestamp_corrected)
   
   # create week column 
   ema_data$week <- lubridate::week(ema_data$questionnaireStartedTimestamp)
