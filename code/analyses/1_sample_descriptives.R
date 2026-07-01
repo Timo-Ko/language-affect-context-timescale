@@ -78,18 +78,15 @@ text_share_trait_both_contexts_summary <- text_share_trait_both_contexts %>%
     )
   )
 
-# Save summaries
-dir.create("tables", showWarnings = FALSE)
-
 write.csv(
   text_share_trait_summary,
-  file = "tables/text_share_trait_summary.csv",
+  file = "results/text_share_trait_summary.csv",
   row.names = FALSE
 )
 
 write.csv(
   text_share_trait_both_contexts_summary,
-  file = "tables/text_share_trait_both_contexts_summary.csv",
+  file = "results/text_share_trait_both_contexts_summary.csv",
   row.names = FALSE
 )
 

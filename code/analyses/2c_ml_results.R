@@ -288,45 +288,6 @@ write.csv(
   na = ""
 )
 
-prediction_performance_repository <- results_sum %>%
-  mutate(
-    outcome = factor(outcome, levels = outcome_order),
-    context = factor(context, levels = context_order),
-    algo = factor(algo, levels = algo_order),
-    valid_folds = paste0(n_folds_valid_pearson, "/", n_folds_total)
-  ) %>%
-  arrange(outcome, context, algo) %>%
-  transmute(
-    `Outcome variable` = as.character(outcome),
-    Context = as.character(context),
-    Algorithm = as.character(algo),
-    `Valid folds` = valid_folds,
-    `Pearson coverage` = pearson_coverage,
-    `r (Md)` = r_md,
-    `r (SD)` = r_sd,
-    `r (Q1)` = r_q25,
-    `r (Q3)` = r_q75,
-    `R2 (Md)` = rsq_md,
-    `R2 (SD)` = rsq_sd,
-    `R2 (Q1)` = rsq_q25,
-    `R2 (Q3)` = rsq_q75,
-    `MAE (Md)` = mae_md,
-    `MAE (SD)` = mae_sd,
-    `MAE (Q1)` = mae_q25,
-    `MAE (Q3)` = mae_q75,
-    `RMSE (Md)` = rmse_md,
-    `RMSE (SD)` = rmse_sd,
-    `RMSE (Q1)` = rmse_q25,
-    `RMSE (Q3)` = rmse_q75
-  )
-
-write.csv(
-  prediction_performance_repository,
-  file = "results/repository_full_prediction_performance_results.csv",
-  row.names = FALSE,
-  na = "NA"
-)
-
 ############################
 #### 5) FIGURE 3:
 #### MAIN PAPER PREDICTION PERFORMANCE
@@ -456,119 +417,9 @@ ggsave(
   dpi = 300
 )
 
-############################
-#### 6) TABLE S3:
-#### PRIVATE-PUBLIC PREDICTION COMPARISON TESTS
-############################
-
-set.seed(42)
-
-n_perm <- 10000
-
-outcomes_to_test <- c(
-  "Trait positive affect",
-  "Trait negative affect",
-  "Daily affective valence",
-  "Momentary affective valence"
-)
-
-private_public_tests <- lapply(outcomes_to_test, function(oc) {
-  
-  d <- results_long %>%
-    filter(
-      algo == "RF",
-      outcome == oc,
-      context %in% context_order
-    ) %>%
-    select(pearson, context) %>%
-    filter(!is.na(pearson))
-  
-  if (
-    sum(d$context == "Private") < 2 ||
-    sum(d$context == "Public") < 2
-  ) {
-    return(tibble(
-      outcome = oc,
-      n_private = sum(d$context == "Private"),
-      n_public = sum(d$context == "Public"),
-      private_median_r = NA_real_,
-      public_median_r = NA_real_,
-      difference = NA_real_,
-      ci_low = NA_real_,
-      ci_high = NA_real_,
-      p = NA_real_
-    ))
-  }
-  
-  private_r <- d$pearson[d$context == "Private"]
-  public_r  <- d$pearson[d$context == "Public"]
-  
-  obs_diff <- median(private_r, na.rm = TRUE) -
-    median(public_r, na.rm = TRUE)
-  
-  null_diffs <- replicate(n_perm, {
-    shuffled <- sample(d$context)
-    median(d$pearson[shuffled == "Private"], na.rm = TRUE) -
-      median(d$pearson[shuffled == "Public"], na.rm = TRUE)
-  })
-  
-  # One-sided test: private > public
-  p_perm <- mean(null_diffs >= obs_diff)
-  
-  boot_diffs <- replicate(n_perm, {
-    median(sample(private_r, replace = TRUE), na.rm = TRUE) -
-      median(sample(public_r, replace = TRUE), na.rm = TRUE)
-  })
-  
-  ci <- quantile(boot_diffs, c(0.025, 0.975), na.rm = TRUE)
-  
-  tibble(
-    outcome = oc,
-    n_private = length(private_r),
-    n_public = length(public_r),
-    private_median_r = median(private_r, na.rm = TRUE),
-    public_median_r = median(public_r, na.rm = TRUE),
-    difference = obs_diff,
-    ci_low = as.numeric(ci[1]),
-    ci_high = as.numeric(ci[2]),
-    p = p_perm
-  )
-}) %>%
-  bind_rows() %>%
-  mutate(
-    p_holm = p.adjust(p, method = "holm")
-  )
-
-table_s3 <- private_public_tests %>%
-  mutate(
-    outcome = factor(outcome, levels = outcomes_to_test)
-  ) %>%
-  arrange(outcome) %>%
-  transmute(
-    `Outcome variable` = as.character(outcome),
-    `Private median r` = round(private_median_r, 2),
-    `Public median r` = round(public_median_r, 2),
-    Difference = round(difference, 2),
-    p = signif(p, 3),
-    pHolm = signif(p_holm, 3)
-  )
-
-write.csv(
-  table_s3,
-  file = "results/table_s3_private_public_prediction_comparison_tests.csv",
-  row.names = FALSE,
-  na = "NA"
-)
-
-write.csv(
-  private_public_tests,
-  file = "results/repository_private_public_prediction_comparison_tests.csv",
-  row.names = FALSE,
-  na = "NA"
-)
 
 ############################
-#### 7) TABLE S5:
+#### 7) TABLE S4:
 #### FEATURE-FAMILY PREDICTION ANALYSES FOR TRAIT AFFECT
 ############################
 
@@ -599,7 +450,7 @@ family_results_sum <- family_results_long %>%
     grouping_vars = c("outcome", "context", "feature_family", "algo")
   )
 
-table_s5 <- family_results_sum %>%
+table_s4 <- family_results_sum %>%
   filter(algo == "RF") %>%
   mutate(
     outcome = factor(
@@ -626,61 +477,10 @@ table_s5 <- family_results_sum %>%
   )
 
 write.csv(
-  table_s5,
-  file = "results/table_s5_feature_family_prediction_trait_affect.csv",
+  table_s4,
+  file = "results/table_s4_feature_family_prediction_trait_affect.csv",
   row.names = FALSE,
   na = ""
-)
-
-feature_family_repository <- family_results_sum %>%
-  mutate(
-    outcome = factor(
-      outcome,
-      levels = c("Trait positive affect", "Trait negative affect")
-    ),
-    context = factor(context, levels = context_order),
-    feature_family = factor(
-      feature_family,
-      levels = c(
-        "Word dictionaries",
-        "Emojis",
-        "Typing dynamics"
-      )
-    ),
-    algo = factor(algo, levels = algo_order),
-    valid_folds = paste0(n_folds_valid_pearson, "/", n_folds_total)
-  ) %>%
-  arrange(outcome, context, feature_family, algo) %>%
-  transmute(
-    `Outcome variable` = as.character(outcome),
-    Context = as.character(context),
-    `Feature family` = as.character(feature_family),
-    Algorithm = as.character(algo),
-    `Valid folds` = valid_folds,
-    `Pearson coverage` = pearson_coverage,
-    `r (Md)` = r_md,
-    `r (SD)` = r_sd,
-    `r (Q1)` = r_q25,
-    `r (Q3)` = r_q75,
-    `R2 (Md)` = rsq_md,
-    `R2 (SD)` = rsq_sd,
-    `R2 (Q1)` = rsq_q25,
-    `R2 (Q3)` = rsq_q75,
-    `MAE (Md)` = mae_md,
-    `MAE (SD)` = mae_sd,
-    `MAE (Q1)` = mae_q25,
-    `MAE (Q3)` = mae_q75,
-    `RMSE (Md)` = rmse_md,
-    `RMSE (SD)` = rmse_sd,
-    `RMSE (Q1)` = rmse_q25,
-    `RMSE (Q3)` = rmse_q75
-  )
-
-write.csv(
-  feature_family_repository,
-  file = "results/repository_feature_family_prediction_trait_affect.csv",
-  row.names = FALSE,
-  na = "NA"
 )
 
 ############################
@@ -688,8 +488,7 @@ write.csv(
 ############################
 
 table_s2
-table_s3
-table_s5
+table_s4
 fig3_pred
 
 # finish
