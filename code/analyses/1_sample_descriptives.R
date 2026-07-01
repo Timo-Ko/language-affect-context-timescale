@@ -419,7 +419,7 @@ fig_volume <- ggplot(
 fig_volume
 
 ggsave(
-  "figures/fig2_volume_private_public.png",
+  "figures/figure2_volume_private_public.png",
   plot  = fig_volume,
   width = 7,
   height = 4,
