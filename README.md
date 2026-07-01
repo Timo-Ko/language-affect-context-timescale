@@ -12,3 +12,9 @@ The repository includes code for:
 - theory-guided regression analyses using selected LIWC markers;
 - supplementary feature-family and robustness analyses;
 - generating manuscript figures and result tables.
+
+## Data Availability
+
+Raw smartphone keyboard logs and raw survey/EMA records are not publicly shared because they contain sensitive participant-level digital behavior data and are subject to participant privacy and ethics restrictions.
+
+The analyses in this repository use privacy-preserving, aggregated keyboard-derived variables together with survey and EMA variables. The aggregated analysis data needed to reproduce the reported results are available via PsychArchives.
