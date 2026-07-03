@@ -414,41 +414,6 @@ stopifnot(
 )
 
 ############################
-#### 4) OCCASION DIAGNOSTICS
-############################
-
-write.csv(
-  keyboard_data_day %>%
-    count(
-      user_id,
-      date,
-      name = "n_context_rows"
-    ) %>%
-    count(
-      n_context_rows,
-      name = "n_occasions"
-    ),
-  "results/check_symbol_daily_rows_per_occasion.csv",
-  row.names = FALSE
-)
-
-
-write.csv(
-  keyboard_data_moment %>%
-    count(
-      user_id,
-      es_questionnaire_id,
-      name = "n_context_rows"
-    ) %>%
-    count(
-      n_context_rows,
-      name = "n_occasions"
-    ),
-  "results/check_symbol_momentary_rows_per_occasion.csv",
-  row.names = FALSE
-)
-
-############################
 #### 5) IDENTIFY SYMBOL FEATURES
 ############################
 
@@ -687,12 +652,6 @@ write.csv(
   row.names = FALSE
 )
 
-
-write.csv(
-  symbol_keep,
-  "results/repository_symbol_features_retained_for_analysis.csv",
-  row.names = FALSE
-)
 
 ############################
 #### 7) PREPARE ANALYSIS DATA
@@ -2557,27 +2516,6 @@ symbol_between_interaction_results <- bind_rows(
     feature
   )
 
-
-write.csv(
-  symbol_between_context_results,
-  paste0(
-    "results/",
-    "repository_symbol_between_person_",
-    "context_specific_results.csv"
-  ),
-  row.names = FALSE
-)
-
-
-write.csv(
-  symbol_between_interaction_results,
-  paste0(
-    "results/",
-    "repository_symbol_between_person_",
-    "context_interaction_results.csv"
-  ),
-  row.names = FALSE
-)
 
 ############################
 #### 16) MODEL DIAGNOSTICS
