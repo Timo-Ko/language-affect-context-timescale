@@ -83,7 +83,6 @@ base_rate_table <- base_rate_long %>%
 
 print(base_rate_table, n = nrow(base_rate_table))
 
-dir.create("results", showWarnings = FALSE)
 
 write.csv(
   base_rate_table,
@@ -161,7 +160,7 @@ make_s6_dataset <- function(df, timescale_label) {
 #### CREATE TABLE S6
 ############################
 
-table_s6 <- bind_rows(
+table_s5 <- bind_rows(
   make_s6_dataset(keyboard_data_trait,  "Trait"),
   make_s6_dataset(keyboard_data_day,    "Daily"),
   make_s6_dataset(keyboard_data_moment, "Momentary")
@@ -181,12 +180,12 @@ table_s6 <- bind_rows(
 ############################
 
 write.csv(
-  table_s6,
-  file = "results/table_s6_theory_guided_liwc_base_rates.csv",
+  table_s5,
+  file = "results/table_s5_theory_guided_liwc_base_rates.csv",
   row.names = FALSE,
   na = ""
 )
 
-table_s6
+table_s5
 
 # finish

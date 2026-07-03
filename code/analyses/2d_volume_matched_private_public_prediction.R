@@ -891,33 +891,6 @@ write.csv(
 
 table_s3_volume_matched
 
-############################
-#### 8) SAVE REPOSITORY OUTPUTS ####
-############################
-
-write.csv(
-  performance_by_iteration,
-  "results/repository_volume_matched_prediction_performance_by_iteration.csv",
-  row.names = FALSE
-)
-
-write.csv(
-  performance_summary,
-  "results/repository_volume_matched_prediction_performance_summary.csv",
-  row.names = FALSE
-)
-
-write.csv(
-  word_count_diagnostics,
-  "results/repository_volume_matched_word_count_diagnostics.csv",
-  row.names = FALSE
-)
-
-write.csv(
-  feature_log,
-  "results/repository_volume_matched_feature_diagnostics.csv",
-  row.names = FALSE
-)
 
 saveRDS(
   list(
@@ -935,7 +908,7 @@ saveRDS(
       public_values = public_values,
       minimum_trait_words = minimum_trait_words,
       store_bmr_objects = store_bmr,
-      resampling = "repeated_cv: folds = 10, repeats = 5",
+      resampling = "repeated_cv: folds = 5, repeats = 20",
       learners = c(
         "regr.featureless",
         "imputeoor.regr.ranger",
