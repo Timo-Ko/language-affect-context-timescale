@@ -17,4 +17,4 @@ The repository includes code for:
 
 Raw smartphone keyboard logs and raw survey/EMA records are not publicly shared because they contain sensitive participant-level digital behavior data and are subject to participant privacy and ethics restrictions.
 
-The analyses in this repository use privacy-preserving, aggregated keyboard-derived variables together with survey and EMA variables. The aggregated analysis data needed to reproduce the reported results are available via PsychArchives.
+The analyses in this repository use privacy-preserving, aggregated keyboard-derived variables together with survey and EMA variables. The aggregated analysis data needed to reproduce the reported results are available to reviewers and will be made available publicly upon publication of the paper. 
