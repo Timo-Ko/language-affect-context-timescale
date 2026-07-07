@@ -1,5 +1,4 @@
 # General Experience Sampling Preprocessing Steps on all users
-#' @author Timo Koch, adapted from Ramona Schoedel
 #' @family Preprocessing function
 #' @import dplyr
 #' @import ema_coding_answers.R
@@ -50,10 +49,6 @@ getEMAdata = function(audio.logging = T){
   ## 5. transform to wide format 
   es_wide = es_long %>% dplyr::select(user_id, es_questionnaire_id, notificationTimestamp, questionnaireStartedTimestamp, questionnaireEndedTimestamp, variable, value) %>% 
     dplyr::group_by(notificationTimestamp) %>% spread(variable, value) 
-  
-  ## 6. compute avg affect
-  es_wide = es_wide %>% dplyr::group_by(user_id) %>% mutate(valence_avg = median(valence), arousal_avg = median(arousal))
-  
   
   return(es_wide)
 }

@@ -1,6 +1,5 @@
 #' 1 Sensing Timestamp Preprocessing Steps per user
 #' 
-#' @author R. Schoedel
 #' @family Preprocessing function
 #' @import dplyr
 #' @import lubridate

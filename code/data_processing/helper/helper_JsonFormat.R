@@ -1,6 +1,5 @@
 #' Helper function to prepare raw keyboard data
 #' 
-#' @author F. Bemmann
 #' @family Preprocessing function 
 #' @description this function unfolds json data into one column per key-value pair 
 #' @export 

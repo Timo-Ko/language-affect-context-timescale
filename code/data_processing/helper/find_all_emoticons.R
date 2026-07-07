@@ -1,6 +1,5 @@
 #' Find all unqiue emoticons in the data set 
 #' 
-#' @author Timo Koch
 #' @family Preprocessing function 
 #' @description this script finds all unique emoticons that have been used in the data set
 #' @return a data frame containing the low and high surrogate as well as a picture of the respective emoticons and a unique variable name

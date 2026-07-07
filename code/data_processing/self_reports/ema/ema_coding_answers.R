@@ -1,6 +1,5 @@
 #' Transform variables of type character in the experience sampling data to numerics
 #' 
-#' @author Ramona Schoedel
 #' @family Experience Sampling, Preprocessing function 
 #' @import dplyr
 #' @import lubridate

@@ -1,6 +1,5 @@
 #' Find all unqiue emoji in the data set 
 #' 
-#' @author Timo Koch
 #' @family Preprocessing step
 #' @import dplyr
 #' @import stringr
