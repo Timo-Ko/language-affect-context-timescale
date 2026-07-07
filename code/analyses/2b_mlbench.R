@@ -64,6 +64,19 @@ keyboard_data_ema_private_ml <- keyboard_data_ema_ml %>%
 keyboard_data_ema_public_ml <- keyboard_data_ema_ml %>% 
   filter(scope == "public")
 
+## Momentary Fluctuation
+keyboard_data_ema_private_diff_ml <- keyboard_data_ema_ml %>% 
+  filter(scope == "private") %>%
+  group_by(user_id) %>%
+  filter(n() >= 5) %>%
+  ungroup()
+
+keyboard_data_ema_public_diff_ml <- keyboard_data_ema_ml %>% 
+  filter(scope == "public") %>%
+  group_by(user_id) %>%
+  filter(n() >= 5) %>%
+  ungroup()
+
 ############################
 #### 3) HELPER FUNCTIONS ####
 ############################
@@ -79,8 +92,8 @@ make_task_backend <- function(data, target, extra_drop = character(0)) {
     "gender",
     "pa_panas",
     "na_panas",
-    "daily_valence",
-    "daily_arousal",
+    "valence_day_mean",
+    "arousal_day_mean",
     "n_ema_day",
     "valence",
     "arousal",
@@ -141,8 +154,8 @@ get_feature_families <- function(data) {
     "gender",
     "pa_panas",
     "na_panas",
-    "daily_valence",
-    "daily_arousal",
+    "valence_day_mean",
+    "arousal_day_mean",
     "n_ema_day",
     "valence",
     "arousal",
@@ -275,13 +288,13 @@ keyboardlanguage_public_na <- make_regr_task(
 keyboardlanguage_private_day_valence <- make_regr_task(
   data = keyboard_data_day_private_ml,
   id = "keyboardlanguage_private_day_valence",
-  target = "daily_valence"
+  target = "valence_day_mean"
 )
 
 keyboardlanguage_public_day_valence <- make_regr_task(
   data = keyboard_data_day_public_ml,
   id = "keyboardlanguage_public_day_valence",
-  target = "daily_valence"
+  target = "valence_day_mean"
 )
 
 #### Momentary affect ####
@@ -316,6 +329,46 @@ keyboardlanguage_public_moment_arousal <- make_regr_task(
   data = keyboard_data_ema_public_ml_arousal,
   id = "keyboardlanguage_public_moment_arousal",
   target = "arousal"
+)
+
+#### Supplementary momentary valence and arousal fluctuations ####
+
+stopifnot(all(c("valence_diff", "arousal_diff") %in% names(keyboard_data_ema_ml)))
+
+keyboard_data_ema_private_ml_valence_diff <- keyboard_data_ema_private_diff_ml %>%
+  filter(!is.na(valence_diff))
+
+keyboard_data_ema_public_ml_valence_diff <- keyboard_data_ema_public_diff_ml %>%
+  filter(!is.na(valence_diff))
+
+keyboard_data_ema_private_ml_arousal_diff <- keyboard_data_ema_private_diff_ml %>%
+  filter(!is.na(arousal_diff))
+
+keyboard_data_ema_public_ml_arousal_diff <- keyboard_data_ema_public_diff_ml %>%
+  filter(!is.na(arousal_diff))
+
+keyboardlanguage_private_moment_valence_diff <- make_regr_task(
+  data = keyboard_data_ema_private_ml_valence_diff,
+  id = "keyboardlanguage_private_moment_valence_diff",
+  target = "valence_diff"
+)
+
+keyboardlanguage_public_moment_valence_diff <- make_regr_task(
+  data = keyboard_data_ema_public_ml_valence_diff,
+  id = "keyboardlanguage_public_moment_valence_diff",
+  target = "valence_diff"
+)
+
+keyboardlanguage_private_moment_arousal_diff <- make_regr_task(
+  data = keyboard_data_ema_private_ml_arousal_diff,
+  id = "keyboardlanguage_private_moment_arousal_diff",
+  target = "arousal_diff"
+)
+
+keyboardlanguage_public_moment_arousal_diff <- make_regr_task(
+  data = keyboard_data_ema_public_ml_arousal_diff,
+  id = "keyboardlanguage_public_moment_arousal_diff",
+  target = "arousal_diff"
 )
 
 ############################
@@ -527,6 +580,28 @@ bmr_keyboardlanguage_moment <- benchmark(
 )
 
 saveRDS(bmr_keyboardlanguage_moment, "results/bmr_keyboardlanguage_moment.rds")
+
+#### Supplementary momentary valence and arousal fluctuation ####
+
+bmgrid_keyboardlanguage_moment_diff <- benchmark_grid(
+  task = list(
+    keyboardlanguage_private_moment_valence_diff,
+    keyboardlanguage_public_moment_valence_diff,
+    keyboardlanguage_private_moment_arousal_diff,
+    keyboardlanguage_public_moment_arousal_diff
+  ),
+  learner = list(lrn_fl, lrn_rf_oor, lrn_rr_hist),
+  resampling = resampling
+)
+
+bmr_keyboardlanguage_moment_diff <- benchmark(
+  bmgrid_keyboardlanguage_moment_diff,
+  store_models = FALSE,
+  store_backends = FALSE
+)
+
+saveRDS(bmr_keyboardlanguage_moment_diff, "results/bmr_keyboardlanguage_moment_diff.rds")
+
 
 ############################
 #### 8b) FEATURE-FAMILY BENCHMARKS

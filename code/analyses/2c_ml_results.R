@@ -32,6 +32,7 @@ source("code/analyses/helper/msr_pearson.R")
 bmr_keyboardlanguage_trait    <- readRDS("results/bmr_keyboardlanguage_trait.rds")
 bmr_keyboardlanguage_day      <- readRDS("results/bmr_keyboardlanguage_day.rds")
 bmr_keyboardlanguage_moment   <- readRDS("results/bmr_keyboardlanguage_moment.rds")
+bmr_keyboardlanguage_moment_diff   <- readRDS("results/bmr_keyboardlanguage_moment_diff.rds")
 bmr_keyboardlanguage_families <- readRDS("results/bmr_keyboardlanguage_feature_families.rds")
 bmr_keyboardlanguage_age      <- readRDS("results/bmr_keyboardlanguage_age.rds")
 
@@ -49,6 +50,9 @@ score_age <- as.data.frame(bmr_keyboardlanguage_age$score(mes)) %>%
 score_day <- as.data.frame(bmr_keyboardlanguage_day$score(mes)) %>%
   mutate(score_source = "day")
 
+score_moment_diff <- as.data.frame(bmr_keyboardlanguage_moment_diff$score(mes)) %>%
+  mutate(score_source = "moment_diff")
+
 score_moment <- as.data.frame(bmr_keyboardlanguage_moment$score(mes)) %>%
   mutate(score_source = "moment")
 
@@ -59,7 +63,8 @@ score_all <- bind_rows(
   score_trait,
   score_age,
   score_day,
-  score_moment
+  score_moment,
+  score_moment_diff
 )
 
 ############################
@@ -137,8 +142,13 @@ nice_outcome <- function(task_id, score_source) {
       str_detect(task_id, regex("valence", ignore_case = TRUE)) ~
       "Momentary affective valence",
     
-    score_source == "moment" ~
-      "Momentary affective valence",
+    score_source == "moment_diff" &
+      str_detect(task_id, regex("valence", ignore_case = TRUE)) ~
+      "Fluctuation in momentary affective valence",
+    
+    score_source == "moment_diff" &
+      str_detect(task_id, regex("arousal", ignore_case = TRUE)) ~
+      "Fluctuation in momentary arousal",
     
     TRUE ~ task_id
   )
@@ -150,7 +160,9 @@ outcome_order <- c(
   "Age",
   "Daily affective valence",
   "Momentary affective valence",
-  "Momentary arousal"
+  "Momentary arousal",
+  "Fluctuation in momentary affective valence",
+  "Fluctuation in momentary arousal"
 )
 
 context_order <- c("Private", "Public")
@@ -258,18 +270,22 @@ table_s2 <- table_s2_skeleton %>%
     by = c("outcome", "context", "algo")
   ) %>%
   mutate(
-    `Median r [IQR]` = fmt_median_iqr(r_md, r_q25, r_q75, digits = 2),
-    `Median R2 [IQR]` = fmt_median_iqr(rsq_md, rsq_q25, rsq_q75, digits = 2),
-    `Median MAE [IQR]` = fmt_median_iqr(mae_md, mae_q25, mae_q75, digits = 2),
     outcome_label = case_when(
-      outcome == "Trait positive affect" ~ "Trait positive affect",
-      outcome == "Trait negative affect" ~ "Trait negative affect",
+      outcome == "Trait positive affect" ~ "Trait Positive Affect",
+      outcome == "Trait negative affect" ~ "Trait Negative Affect",
       outcome == "Age" ~ "Age",
       outcome == "Daily affective valence" ~ "Daily Affective Valence",
       outcome == "Momentary affective valence" ~ "Momentary Affective Valence",
       outcome == "Momentary arousal" ~ "Momentary Arousal",
+      outcome == "Fluctuation in momentary affective valence" ~
+        "Fluctuation in Momentary Affective Valence",
+      outcome == "Fluctuation in momentary arousal" ~
+        "Fluctuation in Momentary Arousal",
       TRUE ~ as.character(outcome)
-    )
+    ),
+    `Median r [IQR]` = fmt_median_iqr(r_md, r_q25, r_q75, digits = 2),
+    `Median R2 [IQR]` = fmt_median_iqr(rsq_md, rsq_q25, rsq_q75, digits = 2),
+    `Median MAE [IQR]` = fmt_median_iqr(mae_md, mae_q25, mae_q75, digits = 2)
   ) %>%
   arrange(outcome, context, algo) %>%
   transmute(
