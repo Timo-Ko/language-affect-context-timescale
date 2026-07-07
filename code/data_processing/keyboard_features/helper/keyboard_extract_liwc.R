@@ -1,5 +1,4 @@
 ## helper function to extract LIWC scores from the keyboard data
-#' by Florian Bemmann
 #' this function extracts LIWC features from keyboard data
 
 get_liwc_data = function(word_data) {

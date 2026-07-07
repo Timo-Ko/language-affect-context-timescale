@@ -11,6 +11,7 @@ source("code/data_processing/helper/ema_labels.R", local = TRUE)
 
 # load ema data
 ema_data <- readRDS("data/ema/ema_data.rds")
+ema_day <- readRDS("data/ema/ema_day.rds")
 
 # load lookup tables (names only; used by extract_keyboard_features)
 emoticons_df <- readRDS("data/helper/emoticons_df.rds")

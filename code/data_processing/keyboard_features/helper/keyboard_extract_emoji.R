@@ -1,5 +1,4 @@
 ## helper function to extract emoji scores from the keyboard data
-#' by Timo Koch
 #' this function extracts emoji features from keyboard data
 #' # important: emoji are stored in utf16 decimal code!
 #' emoji do not have their own dictionary but are detected using a regex matcher

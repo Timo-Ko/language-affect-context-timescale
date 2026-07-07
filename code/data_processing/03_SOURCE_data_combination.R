@@ -14,7 +14,7 @@ demographics <- demographics[!duplicated(demographics), ]
 demographics <- demographics %>% mutate(user_id = as.character(user_id))
 
 ## Load PANAS data
-panas_df <- readRDS("data/helper/panas.RData")
+panas_df <- readRDS("data/helper/panas.rds")
 names(panas_df)[names(panas_df) == "p_0001"] <- "user_uuid"
 panas_df <- panas_df %>% mutate(user_uuid = as.character(user_uuid))
 

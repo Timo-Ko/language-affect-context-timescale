@@ -1,5 +1,4 @@
 ## helper function to extract emoticon scores from the keyboard data
-#' by Timo Koch
 #' this function extracts emoticon features from keyboard data
 
 get_emoticon_data = function(word_data) {

@@ -1,5 +1,4 @@
 ## helper function to extract sentiment scores from the keyboard data
-#' by Florian Bemmann
 
 get_sentiment_data = function(word_data){
 

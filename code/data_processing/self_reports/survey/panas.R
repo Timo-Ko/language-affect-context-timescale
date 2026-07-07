@@ -54,6 +54,6 @@ alpha_na <- alpha(subset(wave3, select = c(PANAS_NEG1, PANAS_NEG2, PANAS_NEG3, P
 
 # save df
 
-saveRDS(panas_df, "data/results/panas.RData")
+saveRDS(panas_df, "data/helper/panas.rds")
 
 # finish

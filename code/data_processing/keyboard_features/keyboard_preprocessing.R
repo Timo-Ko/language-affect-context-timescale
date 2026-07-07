@@ -1,6 +1,5 @@
 #' Preprocessing of keyboard data
 #' 
-#' @author Timo Koch, adapted from Ramona Schoedel and Florian Bemmann 
 #' @family Preprocessing function
 #' @import dplyr
 #' @param keyboard_data keyboard data frame
