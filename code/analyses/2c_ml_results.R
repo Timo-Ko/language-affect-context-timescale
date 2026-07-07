@@ -168,7 +168,12 @@ outcome_order <- c(
 context_order <- c("Private", "Public")
 algo_order <- c("FL", "RF", "EN")
 
-summarise_prediction_performance <- function(df, grouping_vars) {
+summarise_prediction_performance <- function(
+  df,
+  grouping_vars,
+  min_pearson_coverage = 0.50
+) {
+  
   df %>%
     group_by(across(all_of(grouping_vars))) %>%
     summarise(
@@ -176,10 +181,10 @@ summarise_prediction_performance <- function(df, grouping_vars) {
       n_folds_valid_pearson = sum(!is.na(pearson)),
       pearson_coverage = n_folds_valid_pearson / n_folds_total,
       
-      r_md  = safe_median(pearson),
-      r_sd  = safe_sd(pearson),
-      r_q25 = safe_quantile(pearson, .25),
-      r_q75 = safe_quantile(pearson, .75),
+      r_md_raw  = safe_median(pearson),
+      r_sd_raw  = safe_sd(pearson),
+      r_q25_raw = safe_quantile(pearson, .25),
+      r_q75_raw = safe_quantile(pearson, .75),
       
       rsq_md  = safe_median(regr.rsq),
       rsq_sd  = safe_sd(regr.rsq),
@@ -199,6 +204,34 @@ summarise_prediction_performance <- function(df, grouping_vars) {
       .groups = "drop"
     ) %>%
     mutate(
+      r_md = if_else(
+        pearson_coverage >= min_pearson_coverage,
+        r_md_raw,
+        NA_real_
+      ),
+      r_sd = if_else(
+        pearson_coverage >= min_pearson_coverage,
+        r_sd_raw,
+        NA_real_
+      ),
+      r_q25 = if_else(
+        pearson_coverage >= min_pearson_coverage,
+        r_q25_raw,
+        NA_real_
+      ),
+      r_q75 = if_else(
+        pearson_coverage >= min_pearson_coverage,
+        r_q75_raw,
+        NA_real_
+      )
+    ) %>%
+    select(
+      -r_md_raw,
+      -r_sd_raw,
+      -r_q25_raw,
+      -r_q75_raw
+    ) %>%
+    mutate(
       across(
         c(
           pearson_coverage,
@@ -211,7 +244,6 @@ summarise_prediction_performance <- function(df, grouping_vars) {
       )
     )
 }
-
 ############################
 #### 3) PARSE FULL MODEL RESULTS
 ############################

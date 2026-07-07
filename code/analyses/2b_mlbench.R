@@ -68,13 +68,13 @@ keyboard_data_ema_public_ml <- keyboard_data_ema_ml %>%
 keyboard_data_ema_private_diff_ml <- keyboard_data_ema_ml %>% 
   filter(scope == "private") %>%
   group_by(user_id) %>%
-  filter(n() >= 5) %>%
+  filter(n_ema >= 5) %>%
   ungroup()
 
 keyboard_data_ema_public_diff_ml <- keyboard_data_ema_ml %>% 
   filter(scope == "public") %>%
   group_by(user_id) %>%
-  filter(n() >= 5) %>%
+  filter(n_ema>= 5) %>%
   ungroup()
 
 ############################

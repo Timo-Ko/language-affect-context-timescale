@@ -125,10 +125,11 @@ for (user in unique(ema_data$user_id)) {
 
 }
 
-# compute affect baseline and fluctuation 
+# compute affect baseline and fluctuation
 ema_data <- ema_data %>%
   group_by(user_id) %>%
   mutate(
+    n_ema = sum(!is.na(valence) & !is.na(arousal)),
     valence_median = median(valence, na.rm = TRUE),
     arousal_median = median(arousal, na.rm = TRUE),
     valence_diff = valence - valence_median,

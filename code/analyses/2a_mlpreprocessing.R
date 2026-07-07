@@ -62,6 +62,7 @@ no_feature_columns_moment <- c(
   "arousal_mean",
   "valence_diff",
   "arousal_diff",
+  "n_ema",
   "age",
   "gender",
   "scope",

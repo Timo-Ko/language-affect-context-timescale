@@ -103,7 +103,7 @@ keyboard_data_moment <- readRDS("data/results/keyboard_data_ema_final.rds") %>%
 
 stopifnot(
   all(c("user_id", "scope", "pa_panas", "na_panas") %in% names(keyboard_data_trait)),
-  all(c("user_id", "scope", "daily_valence", "date") %in% names(keyboard_data_day)),
+  all(c("user_id", "scope", "valence_day_mean", "date") %in% names(keyboard_data_day)),
   all(c("user_id", "scope", "valence", "es_questionnaire_id") %in% names(keyboard_data_moment))
 )
 
@@ -182,7 +182,7 @@ keyboard_data_trait_z <- keyboard_data_trait %>%
 
 keyboard_data_day_z <- keyboard_data_day %>%
   mutate(
-    daily_valence_z = z_scale(daily_valence),
+    daily_valence_z = z_scale(valence_day_mean),
     occasion_id = factor(occasion_id)
   )
 
@@ -1269,6 +1269,124 @@ write.csv(
 )
 
 ############################
+#### TABLE S7:
+#### BOTH-CONTEXT SENSITIVITY SAMPLE
+############################
+
+table_s7_context <- theory_trait_context_both %>%
+  filter(
+    outcome %in% c(
+      "na_trait_z",
+      "pa_trait_z"
+    ),
+    feature %in% theory_features,
+    context %in% c(
+      "private",
+      "public"
+    )
+  ) %>%
+  mutate(
+    Outcome = case_when(
+      outcome == "na_trait_z" ~ "Trait NA",
+      outcome == "pa_trait_z" ~ "Trait PA",
+      TRUE ~ outcome
+    ),
+    Feature = unname(
+      theory_feature_labels[feature]
+    ),
+    context_label = nice_context(context),
+    beta_ci = fmt_beta_ci(
+      estimate,
+      conf.low,
+      conf.high,
+      digits = 2
+    )
+  ) %>%
+  select(
+    outcome,
+    feature,
+    Outcome,
+    Feature,
+    context_label,
+    beta_ci
+  ) %>%
+  pivot_wider(
+    names_from = context_label,
+    values_from = beta_ci,
+    names_glue = "{context_label} beta [95% CI]"
+  )
+
+
+table_s7_interactions <- theory_trait_interactions_both %>%
+  filter(
+    outcome %in% c(
+      "na_trait_z",
+      "pa_trait_z"
+    ),
+    feature %in% theory_features
+  ) %>%
+  transmute(
+    outcome,
+    feature,
+    `Interaction beta [95% CI]` = fmt_beta_ci(
+      estimate,
+      conf.low,
+      conf.high,
+      digits = 2
+    ),
+    p = signif(
+      p.value,
+      3
+    ),
+    pFDR = signif(
+      p_fdr,
+      3
+    )
+  )
+
+
+table_s7 <- table_s7_context %>%
+  left_join(
+    table_s7_interactions,
+    by = c(
+      "outcome",
+      "feature"
+    )
+  ) %>%
+  mutate(
+    outcome_order = case_when(
+      outcome == "na_trait_z" ~ 1L,
+      outcome == "pa_trait_z" ~ 2L,
+      TRUE ~ 99L
+    ),
+    feature_order = match(
+      feature,
+      theory_features
+    )
+  ) %>%
+  arrange(
+    outcome_order,
+    feature_order
+  ) %>%
+  transmute(
+    Outcome,
+    Feature,
+    `Private β [95% CI]` = `Private beta [95% CI]`,
+    `Public β [95% CI]` = `Public beta [95% CI]`,
+    `Interaction β [95% CI]` = `Interaction beta [95% CI]`,
+    p,
+    `pFDR` = pFDR
+  )
+
+
+write.csv(
+  table_s7,
+  "results/table_s7_both_context_sensitivity_results.csv",
+  row.names = FALSE,
+  na = ""
+)
+
+############################
 #### 12) FULL ALL-LIWC REPOSITORY
 ############################
 
@@ -1368,7 +1486,7 @@ print(model_diagnostics)
 #### 13) TABLE S8
 ############################
 
-table_s7_long <- all_liwc_context_results_all %>%
+table_s8_long <- all_liwc_context_results_all %>%
   filter(
     timescale == "Trait",
     outcome %in% c("pa_trait_z", "na_trait_z"),
@@ -1385,7 +1503,7 @@ table_s7_long <- all_liwc_context_results_all %>%
     beta_ci = fmt_beta_ci(estimate, conf.low, conf.high, digits = 2)
   )
 
-table_s7_ranked_features <- table_s7_long %>%
+table_s8_ranked_features <- table_s8_long %>%
   group_by(feature, feature_label) %>%
   summarise(
     overall_abs_trait_affect_association = sum(abs(estimate), na.rm = TRUE),
@@ -1396,12 +1514,12 @@ table_s7_ranked_features <- table_s7_long %>%
   arrange(desc(overall_abs_trait_affect_association)) %>%
   slice_head(n = 10)
 
-table_s7 <- table_s7_long %>%
-  semi_join(table_s7_ranked_features, by = c("feature", "feature_label")) %>%
+table_s8 <- table_s8_long %>%
+  semi_join(table_s8_ranked_features, by = c("feature", "feature_label")) %>%
   select(feature, feature_label, column_name, beta_ci) %>%
   pivot_wider(names_from = column_name, values_from = beta_ci) %>%
   left_join(
-    table_s7_ranked_features %>% select(feature, overall_abs_trait_affect_association),
+    table_s8_ranked_features %>% select(feature, overall_abs_trait_affect_association),
     by = "feature"
   ) %>%
   arrange(desc(overall_abs_trait_affect_association)) %>%
@@ -1414,8 +1532,8 @@ table_s7 <- table_s7_long %>%
   )
 
 write.csv(
-  table_s7,
-  "results/table_s_top_liwc_trait_affect_associations.csv",
+  table_s8,
+  "results/table_s8_top_liwc_trait_affect_associations.csv",
   row.names = FALSE,
   na = ""
 )
@@ -1429,7 +1547,7 @@ print(theory_interaction_results_all)
 print(theory_trait_context_both)
 print(theory_trait_interactions_both)
 print(table_s6)
-print(table_s7)
+print(table_s8)
 fig4
 
 # finish
