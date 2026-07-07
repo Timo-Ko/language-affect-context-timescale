@@ -1,6 +1,6 @@
-# Affective Signal in Everyday Digital Language Varies by Communication Context and Timescale 
+# Affective Signal in Everyday Digital Language Across Communication Contexts and Timescales 
 
-This repository contains the analysis code for the paper **“Affective Signal in Everyday Digital Language Varies by Communication Context and Timescale.”**
+This repository contains the analysis code for the paper **“Affective Signal in Everyday Digital Language Across Communication Contexts and Timescales.”**
 
 The project examines whether naturalistic smartphone-typed language carries affective signal for trait, daily, and momentary affect, and whether this signal depends on communication context. Using privacy-preserving smartphone keyboard logs, ecological momentary assessments, and survey data, the analyses compare affective signal in private and public communication.
 
