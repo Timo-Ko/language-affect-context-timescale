@@ -153,8 +153,7 @@ trait_unfiltered_descriptives <- summarise_unfiltered_sample(
 daily_unfiltered_descriptives <- summarise_unfiltered_sample(
   data = keyboard_data_day,
   dataset_name = "Daily",
-  word_threshold = 10,
-  additional_filter = keyboard_data_day$n_ema_day >= 3
+  word_threshold = 10
 )
 
 ############################################################
@@ -198,17 +197,10 @@ write.csv(
 daily_filter_breakdown <- keyboard_data_day %>%
   ungroup() %>%
   mutate(
-    passes_word_filter = words_typed >= 10,
-    passes_ema_filter = n_ema_day >= 3,
-    filter_status = case_when(
-      passes_word_filter & passes_ema_filter ~
-        "Retained",
-      !passes_word_filter & passes_ema_filter ~
-        "Dropped: insufficient words only",
-      passes_word_filter & !passes_ema_filter ~
-        "Dropped: insufficient EMAs only",
-      TRUE ~
-        "Dropped: insufficient words and EMAs"
+    filter_status = if_else(
+      words_typed >= 10,
+      "Retained",
+      "Dropped: insufficient words"
     )
   ) %>%
   count(scope, filter_status, name = "n_observations") %>%
@@ -251,7 +243,7 @@ hist(
 describe(keyboard_data_day$words_typed)
 
 keyboard_data_day_filter <- keyboard_data_day %>%
-  filter(words_typed >= 10, n_ema_day >= 3)
+  filter(words_typed >= 10)
 
 # momentary analyses: include windows with at least 10 typed words
 hist(
@@ -284,15 +276,15 @@ ema_comp %>%
 
 # daily valence: kept vs dropped
 day_comp <- keyboard_data_day %>%
-  mutate(kept = words_typed >= 10 & n_ema_day >= 3)
+  mutate(kept = words_typed >= 10 )
 
 day_comp %>%
   group_by(kept) %>%
   summarise(
-    n = sum(!is.na(daily_valence)),
-    mean_daily_valence   = mean(daily_valence, na.rm = TRUE),
-    sd_daily_valence     = sd(daily_valence, na.rm = TRUE),
-    median_daily_valence = median(daily_valence, na.rm = TRUE),
+    n = sum(!is.na(arousal_day_mean)),
+    mean_daily_valence   = mean(arousal_day_mean, na.rm = TRUE),
+    sd_daily_valence     = sd(arousal_day_mean, na.rm = TRUE),
+    median_daily_valence = median(arousal_day_mean, na.rm = TRUE),
     .groups = "drop"
   )
 
@@ -524,7 +516,7 @@ no_feature_columns_day_initial <- c(
   "scope",
   "date",
   "daily_valence",
-  "n_ema_day",
+  "es_count_day",
   "age",
   "gender"
 )

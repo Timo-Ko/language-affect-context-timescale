@@ -58,15 +58,9 @@ keyboard_data_ema <- ema_data %>%
 keyboard_data_ema <- keyboard_data_ema %>%
   select(
     -c(
-      notificationTimestamp,
-      questionnaireStartedTimestamp,
-      questionnaireEndedTimestamp,
       weekday,
       nr,
-      date,
-      week,
-      arousal_diff,
-      valence_diff
+      week
     )
   )
 

@@ -4,6 +4,7 @@
 # We provide our preprocessing code to make all steps in our data handling transparent. 
 # This script - 01_SOURCE_database_functions.R - is the starting point for the keyboard data preprocessing. 
 
+
 ## load R packages 
 library(DBI)
 library(dbplyr)
@@ -21,12 +22,14 @@ library(gsheet)
 library(rio)
 options(scipen = 999)
 
+## load env
+dotenv::load_dot_env(".env")
+
 ## load required scripts 
 
 # Helper functions
 source("code/data_processing/helper/aggregation.R")
 source("code/data_processing/helper/ema_labels.R")
-source("code/data_processing/helper/fill_information_up.R")
 source("code/data_processing/helper/helper_JsonFormat.R")
 source("code/data_processing/helper/helper_variables.R")
 source("code/data_processing/helper/summary_es.R")
@@ -122,9 +125,16 @@ for (user in unique(ema_data$user_id)) {
 
 }
 
-# compute affect fluctuation from baseline
-ema_data$valence_diff = ema_data$valence - ema_data$valence_avg
-ema_data$arousal_diff = ema_data$arousal - ema_data$arousal_avg
+# compute affect baseline and fluctuation 
+ema_data <- ema_data %>%
+  group_by(user_id) %>%
+  mutate(
+    valence_median = median(valence, na.rm = TRUE),
+    arousal_median = median(arousal, na.rm = TRUE),
+    valence_diff = valence - valence_median,
+    arousal_diff = arousal - arousal_median
+  ) %>%
+  ungroup()
 
 # keep relevant columns for this project
 ema_data = ema_data %>%
@@ -157,45 +167,23 @@ ema_day <- ema_data %>%
   dplyr::group_by(user_id, date = lubridate::date(questionnaireStartedTimestamp_corrected)) %>%
   dplyr::summarise(
     es_count_day = n(),
-    valence_day = median(valence, na.rm = TRUE),
-    arousal_day = median(arousal, na.rm = TRUE)
+    valence_day_mean = mean(valence, na.rm = TRUE),
+    arousal_day_mean = mean(arousal, na.rm = TRUE)
   ) %>%
   dplyr::ungroup() %>%
-  dplyr::filter(es_count_day >= 3) %>% # only keep days w at least three es instances per day
+  dplyr::filter(es_count_day >= 2) %>% # only keep days w at two three es instances per day
   dplyr::select(c(
     "user_id",
     "date",
     "es_count_day",
-    "valence_day",
-    "arousal_day"
-  )) # keep relevant columns
-
-## Create df for weekly affect
-
-ema_week <- ema_data %>%
-  dplyr::group_by(user_id, week = lubridate::week(questionnaireStartedTimestamp_corrected)) %>%
-  dplyr::summarise(
-    es_count_week = n(),
-    es_days_week = length(unique(lubridate::day(questionnaireStartedTimestamp_corrected))),
-    valence_week = median(valence, na.rm = TRUE),
-    arousal_week = median(arousal, na.rm = TRUE)
-  ) %>%
-  dplyr::ungroup() %>%
-  dplyr::filter(es_days_week == 7) %>% # only keep weeks w at least one es instance per unique day of the week 
-  dplyr::select(c(
-    "user_id",
-    "week",
-    "es_count_week",
-    "es_days_week",
-    "valence_week",
-    "arousal_week"
-  )) # keep relevant columns
-
+    "valence_day_mean",
+    "arousal_day_mean"
+  )) %>%
+  ungroup()
 
 # save ema data
 saveRDS(ema_data, "data/ema/ema_data.rds")
 saveRDS(ema_day, "data/ema/ema_day.rds")
-saveRDS(ema_week, "data/ema/ema_week.rds")
 
 ## load required helper data
 

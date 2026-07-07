@@ -16,7 +16,7 @@ keyboard_data_ema   <- readRDS("data/results/keyboard_data_ema.rds")
 ############################
 
 changers_map <- read.csv2("data/helper/Smartphonewechsel_20220608.csv") %>%
-  rename(
+  dplyr::rename(
     final_user_id = NewId,
     id_2 = p_0001_new,
     id_3 = p_0001_2,
