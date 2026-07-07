@@ -527,6 +527,7 @@ no_feature_columns_moment_initial <- c(
   "user_uuid",
   "scope",
   "date",
+  "n_ema",
   "es_questionnaire_id",
   "arousal",
   "valence",

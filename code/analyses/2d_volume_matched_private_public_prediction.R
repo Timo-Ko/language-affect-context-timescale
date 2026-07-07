@@ -793,19 +793,31 @@ performance_by_iteration <- performance_by_iteration %>%
   ) %>%
   arrange(iteration, outcome, condition, learner)
 
-# Summary across matching iterations.
-# Original private and public were benchmarked once and therefore have n_iterations = 1.
-# Matched private was benchmarked once per matching iteration.
-performance_summary <- performance_by_iteration %>%
+score_all_df <- score_all_df %>%
+  mutate(
+    condition = factor(
+      condition,
+      levels = c("Original private", "Matched private", "Public")
+    ),
+    outcome = factor(
+      outcome,
+      levels = c("Trait PA", "Trait NA")
+    ),
+    learner = factor(
+      learner,
+      levels = c("FL", "RF", "EN")
+    )
+  )
+
+performance_summary <- score_all_df %>%
   group_by(outcome, condition, learner) %>%
   summarise(
     n_iterations = n_distinct(iteration),
-    median_r_md = median(r_md, na.rm = TRUE),
-    r_md_q25 = safe_quantile(r_md, 0.25),
-    r_md_q75 = safe_quantile(r_md, 0.75),
-    mean_pearson_coverage = mean(pearson_coverage, na.rm = TRUE),
-    mean_achieved_word_ratio = mean(mean_word_ratio, na.rm = TRUE),
-    median_achieved_word_ratio = median(median_word_ratio, na.rm = TRUE),
+    n_scores = sum(!is.na(pearson)),
+    median_r = safe_median(pearson),
+    r_q25 = safe_quantile(pearson, 0.25),
+    r_q75 = safe_quantile(pearson, 0.75),
+    mean_pearson_coverage = mean(!is.na(pearson)),
     .groups = "drop"
   ) %>%
   arrange(outcome, condition, learner)
@@ -854,9 +866,9 @@ table_s3_volume_matched <- performance_summary %>%
       TRUE ~ as.character(condition)
     ),
     `Median r [IQR]` = fmt_median_iqr(
-      median_r_md,
-      r_md_q25,
-      r_md_q75,
+      median_r,
+      r_q25,
+      r_q75,
       digits = 2
     ),
     outcome_order = factor(

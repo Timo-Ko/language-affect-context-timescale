@@ -10,6 +10,61 @@ keyboard_data_day    <- readRDS("data/results/keyboard_data_day_final.rds")
 keyboard_data_moment <- as.data.frame(readRDS("data/results/keyboard_data_ema_final.rds"))
 
 ############################
+#### CORRELATIONS OF TRAIT AND STATE AFFECT OUTCOMES
+############################
+
+ema_data <- readRDS("data/ema/ema_data.rds") %>%
+  as.data.frame() %>%
+  mutate(
+    user_id = as.character(user_id)
+  )
+
+trait_affect <- keyboard_data_trait %>%
+  as.data.frame() %>%
+  mutate(
+    user_id = as.character(user_id)
+  ) %>%
+  group_by(user_id) %>%
+  summarise(
+    pa_panas = first(pa_panas[!is.na(pa_panas)]),
+    na_panas = first(na_panas[!is.na(na_panas)]),
+    .groups = "drop"
+  )
+
+ema_trait_affect_correlations <- ema_data %>%
+  group_by(user_id) %>%
+  summarise(
+    valence_median = median(
+      valence,
+      na.rm = TRUE
+    ),
+    .groups = "drop"
+  ) %>%
+  filter(
+    is.finite(valence_median)
+  ) %>%
+  inner_join(
+    trait_affect,
+    by = "user_id"
+  ) %>%
+  filter(
+    !is.na(pa_panas),
+    !is.na(na_panas)
+  )
+
+cor.test(
+  ema_trait_affect_correlations$valence_median,
+  ema_trait_affect_correlations$pa_panas,
+  method = "pearson"
+)
+
+cor.test(
+  ema_trait_affect_correlations$valence_median,
+  ema_trait_affect_correlations$na_panas,
+  method = "pearson"
+)
+
+############################
 #### SHARE OF TEXT PRODUCED IN EACH COMMUNICATION CONTEXT ####
 ############################
 

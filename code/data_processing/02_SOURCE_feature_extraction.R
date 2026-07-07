@@ -36,18 +36,6 @@ log_file <- "data/errorlog_extraction.txt"
 if (file.exists(log_file)) file.remove(log_file)
 file.create(log_file)
 
-# daily EMA aggregates per user × day
-ema_day <- ema_data %>%
-  filter(!is.na(valence), !is.na(date)) %>%
-  group_by(user_id, date) %>%
-  summarise(
-    daily_valence = mean(valence, na.rm = TRUE),
-    n_ema_day = sum(!is.na(valence)),
-    .groups = "drop"
-  )
-
-saveRDS(ema_day, "data/ema/ema_day.rds")
-
 ############ Define Feature Extraction Function #############
 
 keyboard_feature_extraction <- function(user) {
