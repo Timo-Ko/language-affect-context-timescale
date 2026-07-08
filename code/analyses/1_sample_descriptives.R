@@ -19,20 +19,46 @@ ema_data <- readRDS("data/ema/ema_data.rds") %>%
     user_id = as.character(user_id)
   )
 
-trait_affect <- keyboard_data_trait %>%
-  as.data.frame() %>%
-  mutate(
-    user_id = as.character(user_id)
+analytic_users <- keyboard_data_trait %>%
+  filter(
+    scope %in% c(
+      "private",
+      "public"
+    ),
+    words_typed >= 100
   ) %>%
-  group_by(user_id) %>%
+  distinct(
+    user_id
+  )
+
+
+trait_affect_final <- keyboard_data_trait %>%
+  semi_join(
+    analytic_users,
+    by = "user_id"
+  ) %>%
+  group_by(
+    user_id
+  ) %>%
   summarise(
-    pa_panas = first(pa_panas[!is.na(pa_panas)]),
-    na_panas = first(na_panas[!is.na(na_panas)]),
+    pa_panas = first(
+      pa_panas[
+        !is.na(pa_panas)
+      ]
+    ),
+    na_panas = first(
+      na_panas[
+        !is.na(na_panas)
+      ]
+    ),
     .groups = "drop"
   )
 
-ema_trait_affect_correlations <- ema_data %>%
-  group_by(user_id) %>%
+
+ema_trait_affect_correlations_final <- ema_data %>%
+  group_by(
+    user_id
+  ) %>%
   summarise(
     valence_median = median(
       valence,
@@ -41,10 +67,12 @@ ema_trait_affect_correlations <- ema_data %>%
     .groups = "drop"
   ) %>%
   filter(
-    is.finite(valence_median)
+    is.finite(
+      valence_median
+    )
   ) %>%
   inner_join(
-    trait_affect,
+    trait_affect_final,
     by = "user_id"
   ) %>%
   filter(
@@ -52,15 +80,22 @@ ema_trait_affect_correlations <- ema_data %>%
     !is.na(na_panas)
   )
 
+
+n_distinct(
+  ema_trait_affect_correlations_final$user_id
+)
+
+
 cor.test(
-  ema_trait_affect_correlations$valence_median,
-  ema_trait_affect_correlations$pa_panas,
+  ema_trait_affect_correlations_final$valence_median,
+  ema_trait_affect_correlations_final$pa_panas,
   method = "pearson"
 )
 
+
 cor.test(
-  ema_trait_affect_correlations$valence_median,
-  ema_trait_affect_correlations$na_panas,
+  ema_trait_affect_correlations_final$valence_median,
+  ema_trait_affect_correlations_final$na_panas,
   method = "pearson"
 )
 
