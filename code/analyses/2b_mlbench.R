@@ -482,7 +482,7 @@ keyboardlanguage_private_pa_emoji <- make_family_regr_task(
   data = keyboard_data_trait_private_ml,
   id = "keyboardlanguage_private_pa_emoji",
   target = "pa_panas",
-  family_features = feature_families_trait$emoji
+  family_features = feature_families_trait$symbol
 )
 
 keyboardlanguage_private_pa_typing <- make_family_regr_task(
@@ -505,7 +505,7 @@ keyboardlanguage_private_na_emoji <- make_family_regr_task(
   data = keyboard_data_trait_private_ml,
   id = "keyboardlanguage_private_na_emoji",
   target = "na_panas",
-  family_features = feature_families_trait$emoji
+  family_features = feature_families_trait$symbol
 )
 
 keyboardlanguage_private_na_typing <- make_family_regr_task(
@@ -528,7 +528,7 @@ keyboardlanguage_public_pa_emoji <- make_family_regr_task(
   data = keyboard_data_trait_public_ml,
   id = "keyboardlanguage_public_pa_emoji",
   target = "pa_panas",
-  family_features = feature_families_trait$emoji
+  family_features = feature_families_trait$symbol
 )
 
 keyboardlanguage_public_pa_typing <- make_family_regr_task(
@@ -551,7 +551,7 @@ keyboardlanguage_public_na_emoji <- make_family_regr_task(
   data = keyboard_data_trait_public_ml,
   id = "keyboardlanguage_public_na_emoji",
   target = "na_panas",
-  family_features = feature_families_trait$emoji
+  family_features = feature_families_trait$symbol
 )
 
 keyboardlanguage_public_na_typing <- make_family_regr_task(

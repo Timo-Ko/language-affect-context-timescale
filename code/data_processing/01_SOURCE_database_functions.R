@@ -201,10 +201,10 @@ liwc.names = rbind(liwc.names, unknown)
 liwc.names$LIWC.name = paste0("LIWC_", liwc.names$LIWC.cat)
 
 ## load all emoticon names that had been used in the data set
-emoticons_df <- readRDS("data/helper/emoticons_df.RData")
+emoticons_df <- readRDS("data/helper/emoticons_df.rds")
 
 ## Load emoji names and emoji sentiment
-emoji_df <- readRDS("data/helper/emoji_df.RData")
+emoji_df <- readRDS("data/helper/emoji_df.rds")
 
 ## the data from the sql data base and runs some very basic preprocessing / enrichment. 
 
