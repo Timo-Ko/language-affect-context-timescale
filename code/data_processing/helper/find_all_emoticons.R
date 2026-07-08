@@ -37,6 +37,6 @@ emoticons_df <- emoticons_unique_names[emoticons_unique_names$emoticon %in% uniq
 emoticons_df$emoticon_escaped = sapply(emoticons_df$emoticon, function(x) paste0("\\", x))
 
 # save data frame 
-saveRDS(emoticons_df, "data/helper/emoticons_df.RData")
+saveRDS(emoticons_df, "data/helper/emoticons_df.rds")
 
 ## Finished 

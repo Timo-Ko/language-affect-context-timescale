@@ -121,6 +121,6 @@ emoji_df <- left_join(emoji_df, emoji_sentiment[, c("unicode_codepoint", "Sentim
 names(emoji_df)[names(emoji_df) == "Sentiment.score"] <- "sentiment_score"
 
 # save data frame 
-saveRDS(emoji_df, "data/helper/emoji_df.RData")
+saveRDS(emoji_df, "data/helper/emoji_df.rds")
 
 ## Finished 
