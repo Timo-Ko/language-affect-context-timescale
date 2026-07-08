@@ -143,13 +143,18 @@ make_regr_task <- function(data, id, target, extra_drop = character(0)) {
 #### 3b) FEATURE-FAMILY HELPERS ####
 ############################
 
+
 get_feature_families <- function(data) {
   
   metadata_cols <- c(
     "user_id",
+    "user_uuid",
     "scope",
+    "context",
     "date",
     "user_day_id",
+    "occasion_id",
+    "n_language_days",
     "age",
     "gender",
     "pa_panas",
@@ -162,6 +167,8 @@ get_feature_families <- function(data) {
     "arousal",
     "valence_avg",
     "arousal_avg",
+    "valence_median",
+    "arousal_median",
     "notificationTimestamp",
     "questionnaireStartedTimestamp",
     "questionnaireEndedTimestamp",
@@ -176,22 +183,107 @@ get_feature_families <- function(data) {
     "arousal_diff"
   )
   
-  candidate_features <- setdiff(names(data), metadata_cols)
+  
+  measurement_coverage_features <- c(
+    "liwc_match_rate",
+    "wordsentiment_match_rate",
+    "senti_emoji_match_rate"
+  )
+  
+  
+  candidate_features <- setdiff(
+    names(data),
+    c(
+      metadata_cols,
+      measurement_coverage_features
+    )
+  )
+  
   
   word_features <- candidate_features[
-    str_detect(candidate_features, "^liwc_|^wordsentiment")
+    str_detect(
+      candidate_features,
+      "^liwc_|^wordsentiment"
+    )
   ]
   
-  emoji_features <- candidate_features[
-    str_detect(candidate_features, "^emoji_|^emoticon_|^senti_emoji")
+  
+  symbol_features <- candidate_features[
+    str_detect(
+      candidate_features,
+      paste0(
+        "^emoji_|",
+        "^emoticon_|",
+        "^unique_emoji_count$|",
+        "^unique_emoticon_count$"
+      )
+    )
   ]
   
-  typing_features <- setdiff(candidate_features, c(word_features, emoji_features))
+  
+  typing_features <- setdiff(
+    candidate_features,
+    c(
+      word_features,
+      symbol_features
+    )
+  )
+  
+  
+  stopifnot(
+    length(
+      intersect(
+        word_features,
+        symbol_features
+      )
+    ) == 0,
+    
+    length(
+      intersect(
+        word_features,
+        typing_features
+      )
+    ) == 0,
+    
+    length(
+      intersect(
+        symbol_features,
+        typing_features
+      )
+    ) == 0
+  )
+  
+  
+  stopifnot(
+    setequal(
+      candidate_features,
+      c(
+        word_features,
+        symbol_features,
+        typing_features
+      )
+    )
+  )
+  
   
   list(
-    word   = sort(unique(word_features)),
-    emoji  = sort(unique(emoji_features)),
-    typing = sort(unique(typing_features))
+    word = sort(
+      unique(
+        word_features
+      )
+    ),
+    
+    symbol = sort(
+      unique(
+        symbol_features
+      )
+    ),
+    
+    typing = sort(
+      unique(
+        typing_features
+      )
+    )
   )
 }
 
@@ -200,15 +292,15 @@ feature_families_day    <- get_feature_families(keyboard_data_day_ml)
 feature_families_moment <- get_feature_families(keyboard_data_ema_ml)
 
 message("Trait families: word=", length(feature_families_trait$word),
-        ", emoji=", length(feature_families_trait$emoji),
+        ", symbol=", length(feature_families_trait$symbol),
         ", typing=", length(feature_families_trait$typing))
 
 message("Day families: word=", length(feature_families_day$word),
-        ", emoji=", length(feature_families_day$emoji),
+        ", symbol=", length(feature_families_day$symbol),
         ", typing=", length(feature_families_day$typing))
 
 message("Moment families: word=", length(feature_families_moment$word),
-        ", emoji=", length(feature_families_moment$emoji),
+        ", symbol=", length(feature_families_moment$symbol),
         ", typing=", length(feature_families_moment$typing))
 
 make_family_regr_task <- function(data, id, target, family_features) {

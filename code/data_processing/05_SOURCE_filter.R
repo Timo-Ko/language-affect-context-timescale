@@ -451,7 +451,20 @@ saveRDS(keyboard_data_ema_cleaned,   "data/results/keyboard_data_ema_final.rds")
 count_initial_feature_families <- function(data, no_feature_columns, dataset_name = "dataset") {
   
   # Keep only columns that are potential keyboard-derived predictors
-  feature_cols <- setdiff(names(data), no_feature_columns)
+  
+  measurement_coverage_features <- c(
+    "liwc_match_rate",
+    "wordsentiment_match_rate",
+    "senti_emoji_match_rate"
+  )
+  
+  feature_cols <- setdiff(
+    names(data),
+    c(
+      no_feature_columns,
+      measurement_coverage_features
+    )
+  )
   
   # Word dictionary features
   dictionary_features <- feature_cols[
@@ -459,21 +472,24 @@ count_initial_feature_families <- function(data, no_feature_columns, dataset_nam
   ]
   
   # Emoji and emoticon features
-  emoji_features <- feature_cols[
-    str_detect(feature_cols, "^emoji_|^emoticon_|^senti_emoji")
+  symbol_features <- feature_cols[
+    str_detect(
+      feature_cols,
+      "^emoji_|^emoticon_|^unique_emoji_count$|^unique_emoticon_count$"
+    )
   ]
   
   # Typing dynamics / behavioral production features
   typing_features <- setdiff(
     feature_cols,
-    c(dictionary_features, emoji_features)
+    c(dictionary_features, symbol_features)
   )
   
   summary_out <- tibble(
     dataset = dataset_name,
     total_extracted_features = length(feature_cols),
     word_dictionary_features = length(dictionary_features),
-    emoji_emoticon_features = length(emoji_features),
+    symbol_features = length(symbol_features),
     typing_dynamics_features = length(typing_features)
   )
   
@@ -482,7 +498,7 @@ count_initial_feature_families <- function(data, no_feature_columns, dataset_nam
     feature = sort(feature_cols),
     feature_family = case_when(
       feature %in% dictionary_features ~ "Word dictionaries",
-      feature %in% emoji_features ~ "Emojis/emoticons",
+      feature %in% symbol_features ~ "Emojis/emoticons",
       feature %in% typing_features ~ "Typing dynamics",
       TRUE ~ "Unclassified"
     )
@@ -492,7 +508,7 @@ count_initial_feature_families <- function(data, no_feature_columns, dataset_nam
     summary = summary_out,
     feature_list = feature_list_out,
     dictionary_features = sort(dictionary_features),
-    emoji_features = sort(emoji_features),
+    symbol_features = sort(symbol_features),
     typing_features = sort(typing_features)
   ))
 }
