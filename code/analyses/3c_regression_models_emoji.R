@@ -397,67 +397,27 @@ message(
 
 
 ############################
-#### 5) PARTICIPANT-LEVEL PREVALENCE
+#### 5) CONTEXT-SPECIFIC PARTICIPANT PREVALENCE
 ############################
 
-# Retain symbols used by at least 10% of participants overall.
+# For context-specific trait regressions, retain symbols used by
+# at least 10% of participants in BOTH private and public communication.
 #
-# Prefer scope == "all" rows. If unavailable, reconstruct
-# overall observed symbol use from private and public rows.
+# Prevalence is calculated in the trait analysis sample used for the
+# PA and NA regressions.
 
-if (
-  "all" %in%
-  keyboard_data_trait_raw$scope
-) {
-  
-  symbol_prevalence_source <- keyboard_data_trait_raw %>%
-    filter(
-      scope == "all"
-    ) %>%
-    select(
-      user_id,
-      all_of(
-        symbol_features_trait
-      )
+symbol_prevalence_source <- keyboard_data_trait %>%
+  filter(
+    !is.na(pa_panas),
+    !is.na(na_panas)
+  ) %>%
+  select(
+    user_id,
+    context,
+    all_of(
+      symbol_features_trait
     )
-  
-} else {
-  
-  symbol_prevalence_source <- keyboard_data_trait_raw %>%
-    filter(
-      scope %in% c(
-        "private",
-        "public"
-      )
-    ) %>%
-    select(
-      user_id,
-      all_of(
-        symbol_features_trait
-      )
-    ) %>%
-    group_by(
-      user_id
-    ) %>%
-    summarise(
-      across(
-        all_of(
-          symbol_features_trait
-        ),
-        ~ {
-          if (all(is.na(.x))) {
-            NA_real_
-          } else {
-            max(
-              .x,
-              na.rm = TRUE
-            )
-          }
-        }
-      ),
-      .groups = "drop"
-    )
-}
+  )
 
 
 symbol_prevalence_trait <- symbol_prevalence_source %>%
@@ -469,6 +429,7 @@ symbol_prevalence_trait <- symbol_prevalence_source %>%
     values_to = "value"
   ) %>%
   group_by(
+    context,
     feature
   ) %>%
   summarise(
@@ -499,9 +460,8 @@ symbol_prevalence_trait <- symbol_prevalence_source %>%
     by = "feature"
   ) %>%
   arrange(
-    desc(
-      prop_users_nonzero
-    )
+    feature,
+    context
   )
 
 
@@ -509,8 +469,50 @@ symbol_keep <- symbol_prevalence_trait %>%
   filter(
     !is.na(
       prop_users_nonzero
+    )
+  ) %>%
+  group_by(
+    feature,
+    symbol,
+    symbol_type
+  ) %>%
+  summarise(
+    n_contexts = n_distinct(
+      context
     ),
-    prop_users_nonzero >= 0.10
+    
+    private_prevalence = prop_users_nonzero[
+      context == "private"
+    ][1],
+    
+    public_prevalence = prop_users_nonzero[
+      context == "public"
+    ][1],
+    
+    private_n_users_nonzero = n_users_nonzero[
+      context == "private"
+    ][1],
+    
+    public_n_users_nonzero = n_users_nonzero[
+      context == "public"
+    ][1],
+    
+    .groups = "drop"
+  ) %>%
+  filter(
+    n_contexts == 2,
+    !is.na(private_prevalence),
+    !is.na(public_prevalence),
+    private_prevalence >= 0.10,
+    public_prevalence >= 0.10
+  ) %>%
+  arrange(
+    desc(
+      pmin(
+        private_prevalence,
+        public_prevalence
+      )
+    )
   )
 
 
@@ -519,7 +521,7 @@ if (nrow(symbol_keep) == 0) {
   stop(
     paste0(
       "No emoji or emoticon features met the ",
-      "10% participant-level prevalence threshold."
+      "10% prevalence threshold in both contexts."
     )
   )
 }
@@ -532,7 +534,7 @@ symbol_features_keep_trait <- intersect(
 
 
 message(
-  "Symbols retained at trait level: ",
+  "Symbols retained for context-specific trait regressions: ",
   length(
     symbol_features_keep_trait
   ),
@@ -550,10 +552,23 @@ message(
 
 write.csv(
   symbol_prevalence_trait,
-  "results/repository_symbol_prevalence_trait_overall.csv",
+  paste0(
+    "results/",
+    "repository_symbol_prevalence_trait_by_context.csv"
+  ),
   row.names = FALSE
 )
 
+
+write.csv(
+  symbol_keep,
+  paste0(
+    "results/",
+    "repository_symbol_prevalence_trait_",
+    "both_contexts_eligible.csv"
+  ),
+  row.names = FALSE
+)
 
 ############################
 #### 6) PREPARE TRAIT ANALYSIS DATA
@@ -1146,6 +1161,7 @@ symbol_trait_context_results <- symbol_trait_context %>%
     symbol_prevalence_trait %>%
       select(
         feature,
+        context,
         n_users_observed_prevalence =
           n_users_observed,
         n_users_nonzero_prevalence =
@@ -1153,7 +1169,10 @@ symbol_trait_context_results <- symbol_trait_context %>%
         prop_users_nonzero_prevalence =
           prop_users_nonzero
       ),
-    by = "feature"
+    by = c(
+      "feature",
+      "context"
+    )
   ) %>%
   mutate(
     timescale = "Trait",
@@ -1216,22 +1235,36 @@ symbol_trait_interactions <- bind_rows(
 )
 
 
+symbol_prevalence_trait_wide <- symbol_prevalence_trait %>%
+  select(
+    feature,
+    context,
+    n_users_observed,
+    n_users_nonzero,
+    prop_users_nonzero
+  ) %>%
+  mutate(
+    context = as.character(
+      context
+    )
+  ) %>%
+  pivot_wider(
+    names_from = context,
+    values_from = c(
+      n_users_observed,
+      n_users_nonzero,
+      prop_users_nonzero
+    ),
+    names_glue = "{context}_{.value}"
+  )
+
 symbol_trait_interaction_results <- symbol_trait_interactions %>%
   left_join(
     symbol_lookup_trait,
     by = "feature"
   ) %>%
   left_join(
-    symbol_prevalence_trait %>%
-      select(
-        feature,
-        n_users_observed_prevalence =
-          n_users_observed,
-        n_users_nonzero_prevalence =
-          n_users_nonzero,
-        prop_users_nonzero_prevalence =
-          prop_users_nonzero
-      ),
+    symbol_prevalence_trait_wide,
     by = "feature"
   ) %>%
   mutate(
