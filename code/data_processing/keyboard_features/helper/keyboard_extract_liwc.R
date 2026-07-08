@@ -1,4 +1,5 @@
 ## helper function to extract LIWC scores from the keyboard data
+#' by Florian Bemmann, Timo Koch
 #' this function extracts LIWC features from keyboard data
 
 get_liwc_data = function(word_data) {
@@ -8,7 +9,7 @@ get_liwc_data = function(word_data) {
 
   if (nrow(liwc_data) > 0) {
     # get liwc columns
-    liwc_data_parsed = parseJsonColumnSensing(liwc_data, "event_json")
+    liwc_data_parsed = parseJsonColumnDictionary(liwc_data, "event_json")
     
     liwc_data_parsed$client_event_id = NULL
     colnames(liwc_data_parsed)[which(colnames(liwc_data_parsed) == "message_statistics_id")] = "client_event_id"
@@ -23,7 +24,8 @@ get_liwc_data = function(word_data) {
       add_column(!!!cols_events[!names(cols_events) %in% names(.)]) %>% # add missing cols if required
       select(client_event_id, ADDED, CHANGED, REMOVED) %>% 
       group_by(client_event_id) %>% 
-      summarise_if(is.numeric, sum, na.rm = TRUE) 
+      summarise_if(is.numeric, sum, na.rm = TRUE) %>% 
+      ungroup()
     
     # statistics (LIWC counts) regarding only ADDED and CHANGED events per message -> Interpretation: actively produced text
     liwc_per_action = cbind(liwc_data_parsed, qdapTools::mtabulate(strsplit(
@@ -38,7 +40,8 @@ get_liwc_data = function(word_data) {
         date,
         logical_category_list_id,
         regex_matcher_id
-      )) %>% group_by(client_event_id) %>% summarise_if(is.numeric, sum, na.rm = TRUE)
+      )) %>% group_by(client_event_id) %>% summarise_if(is.numeric, sum, na.rm = TRUE) %>% 
+      ungroup()
     
     ## add missing C columns (LIWC categories range from C0 to C76)
     cols = setNames(list(rep(0, 77))[[1]], sprintf("C%d", 0:76))
@@ -47,11 +50,11 @@ get_liwc_data = function(word_data) {
     # merge information on counts and liwc per typing session
     liwc_all = inner_join(liwc_event_type_counts_per_session, liwc_by_session, by = "client_event_id")
     
-    ### relativize LIWC scores for total number of added words per text input
-    cols.t = liwc_all %>% select(matches("^[C]"), -CHANGED, -client_event_id) %>% colnames()
-    newby = list(apply(liwc_all[, which(colnames(liwc_all) %in% cols.t)], 2, function(t)
-      t / (liwc_all$ADDED + liwc_all$CHANGED)))
-    liwc_all[, which(colnames(liwc_all) %in% cols.t)] = do.call(rbind.data.frame, newby)
+    # ### relativize LIWC scores for total number of added words per text input
+    # cols.t = liwc_all %>% select(matches("^[C]"), -CHANGED, -client_event_id) %>% colnames()
+    # newby = list(apply(liwc_all[, which(colnames(liwc_all) %in% cols.t)], 2, function(t)
+    #   t / (liwc_all$ADDED + liwc_all$CHANGED)))
+    # liwc_all[, which(colnames(liwc_all) %in% cols.t)] = do.call(rbind.data.frame, newby)
     
     # Translate LIWC variables into readable labels
     for (x in 1:ncol(liwc_all)) {
@@ -59,7 +62,7 @@ get_liwc_data = function(word_data) {
       if (length(test.rename) == 1)
         colnames(liwc_all)[x] = liwc.names$LIWC.name[which(liwc.names$C.cat == colnames(liwc_all)[x])]
     }
-  
+    
     # rename columns and reorder
     
     liwc_all <- liwc_all %>% 

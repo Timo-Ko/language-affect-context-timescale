@@ -42,10 +42,10 @@ source("code/data_processing/self_reports/ema/ema_general_preprocessing.R")
 # scripts for keyboard data
 source("code/data_processing/keyboard_features/helper/keyboard_extract_liwc.R")
 source("code/data_processing/keyboard_features/helper/keyboard_extract_sentiment.R")
-#source("code/data_processing/keyboard_features/helper/keyboard_extract_emoji.R")
-#source("code/data_processing/keyboard_features/helper/keyboard_extract_emoticons.R")
+source("code/data_processing/keyboard_features/helper/keyboard_extract_emoji.R")
+source("code/data_processing/keyboard_features/helper/keyboard_extract_emoticons.R")
 source("code/data_processing/keyboard_features/extract_keyboard_features.R")
-source("code/data_processing/keyboard_features/keyboard_preprocessing.R")
+source("code/data_processing/keyboard_features/keyboard_enrichment.R")
 
 ## connect to databases in which the keyboard and experience sampling data are stored
 

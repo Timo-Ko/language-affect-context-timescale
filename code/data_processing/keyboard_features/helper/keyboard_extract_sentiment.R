@@ -1,4 +1,5 @@
 ## helper function to extract sentiment scores from the keyboard data
+#' by Florian Bemmann, Timo Koch
 
 get_sentiment_data = function(word_data){
 
@@ -7,7 +8,7 @@ get_sentiment_data = function(word_data){
   
   if(nrow(senti_data) > 0){
     # get sentiment columns
-    senti_data_parsed = parseJsonColumnSensing(senti_data, "event_json")
+    senti_data_parsed = parseJsonColumnDictionary(senti_data, "event_json")
     
     senti_data_parsed$client_event_id = NULL
     colnames(senti_data_parsed)[which(colnames(senti_data_parsed) == "message_statistics_id")] = "client_event_id" # rename column
@@ -21,17 +22,17 @@ get_sentiment_data = function(word_data){
       dplyr::filter(contentUnitEventType == "ADDED" | contentUnitEventType == "CHANGED") %>%
       dplyr::group_by(client_event_id) %>% 
       dplyr::mutate(
-      count_sentiment_match = sum(!is.na(sentiment_weight)),
-      session_sentiment_avg = median(as.numeric(sentiment_weight), na.rm = TRUE),
-      session_sentiment_var = sd(as.numeric(sentiment_weight), na.rm = TRUE)
+      count_sentiment_match = sum(!is.na(sentiment_weight), na.rm = TRUE),
+      sentiment_scores = list(as.numeric(sentiment_weight[!is.na(sentiment_weight)])),
+      word_sentiment_md = median(as.numeric(sentiment_weight), na.rm = TRUE)
     ) %>%  dplyr::filter(row_number()==1) %>% ungroup()
 
     ## select relevant columns for further preprocessing
     sentiment_by_session = sentiment_by_session %>% dplyr::select(
       client_event_id,
       count_sentiment_match,
-      session_sentiment_avg,
-      session_sentiment_var
+      sentiment_scores,
+      word_sentiment_md
     ) #%>% dplyr::mutate_all(na_if,"NaN")  # replace NaN cells with NA
   }
   

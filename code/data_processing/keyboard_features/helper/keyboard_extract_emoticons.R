@@ -1,4 +1,5 @@
 ## helper function to extract emoticon scores from the keyboard data
+#' by Timo Koch
 #' this function extracts emoticon features from keyboard data
 
 get_emoticon_data = function(word_data) {
@@ -8,7 +9,7 @@ get_emoticon_data = function(word_data) {
 
   if (nrow(emoticon_data) > 0) {
     # get emoticon columns
-    emoticon_data_parsed = parseJsonColumnSensing(emoticon_data, "event_json")
+    emoticon_data_parsed = parseJsonColumnDictionary(emoticon_data, "event_json")
     
     emoticon_data_parsed$client_event_id = NULL
     colnames(emoticon_data_parsed)[which(colnames(emoticon_data_parsed) == "message_statistics_id")] = "client_event_id"
@@ -29,7 +30,8 @@ get_emoticon_data = function(word_data) {
         logical_category_list_id,
         regex_matcher_id,
         unknown
-      )) %>% group_by(client_event_id) %>% summarise_if(is.numeric, sum, na.rm = TRUE) 
+      )) %>% group_by(client_event_id) %>% summarise_if(is.numeric, sum, na.rm = TRUE) %>% 
+      ungroup()
     
     # remove double escapes from colnames
     colnames(emoticon_by_session) <-
@@ -39,11 +41,11 @@ get_emoticon_data = function(word_data) {
     cols = setNames(list(rep(0, nrow(emoticons_df)))[[1]], emoticons_df$emoticon)
     emoticon_all = emoticon_by_session %>% add_column(!!!cols[!names(cols) %in% names(.)])
     
-    ### relativize emoticon scores for total number of emoticons per text input
-    newby = list(apply(emoticon_all[, which(colnames(emoticon_all) %in% sub("^\\\\", "", emoticon_columns))], 2, function(t)
-      t / emoticon_all$emoticon_count))
-    
-    emoticon_all[, which(colnames(emoticon_all) %in% sub("^\\\\", "", emoticon_columns))] = do.call(rbind.data.frame, newby)
+    # ### relativize emoticon scores for total number of emoticons per text input
+    # newby = list(apply(emoticon_all[, which(colnames(emoticon_all) %in% sub("^\\\\", "", emoticon_columns))], 2, function(t)
+    #   t / emoticon_all$emoticon_count))
+    # 
+    # emoticon_all[, which(colnames(emoticon_all) %in% sub("^\\\\", "", emoticon_columns))] = do.call(rbind.data.frame, newby)
     
     # Translate emoticon variables into readable labels
     colnames(emoticon_all) <-
