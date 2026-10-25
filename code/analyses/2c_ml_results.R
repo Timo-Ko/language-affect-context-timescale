@@ -275,6 +275,116 @@ write.csv(
   row.names = FALSE
 )
 
+
+############################
+#### SIGNIFICANCE TESTS
+############################
+
+source("code/analyses/helper/sign_test_folds.R")
+
+# One-sided corrected tests: RF improves R2 over the featureless baseline.
+# Positive differences below favor RF; folds with undefined R2 are excluded in pairs.
+test_outcomes <- c(
+  "Trait positive affect", "Trait negative affect", "Daily affective valence",
+  "Momentary affective valence", "Fluctuation in momentary affective valence"
+)
+
+test_against_baseline <- function(data) {
+  baseline <- data %>% filter(algo == "FL") %>% arrange(iteration)
+  model <- data %>% filter(algo == "RF") %>% arrange(iteration)
+  stopifnot(
+    nrow(baseline) > 0, !anyDuplicated(baseline$iteration),
+    !anyDuplicated(model$iteration), identical(baseline$iteration, model$iteration)
+  )
+
+  resampling <- baseline$resampling[[1]]
+  stopifnot(
+    resampling$id == "repeated_cv", nrow(baseline) == resampling$iters,
+    all(vapply(c(baseline$resampling, model$resampling), function(x) {
+      identical(x$hash, resampling$hash)
+    }, logical(1)))
+  )
+
+  baseline_r2 <- baseline$regr.rsq
+  model_r2 <- model$regr.rsq
+  valid <- is.finite(baseline_r2) & is.finite(model_r2)
+  if (sum(valid) < 2) stop("Too few paired finite R2 scores for RF")
+
+  # Confirm that paired scores cover the same complete held-out observations.
+  for (i in which(valid)) {
+    base_prediction <- baseline$prediction_test[[i]]
+    model_prediction <- model$prediction_test[[i]]
+    test_rows <- sort(resampling$test_set(baseline$iteration[i]))
+    stopifnot(
+      identical(sort(base_prediction$row_ids), test_rows),
+      identical(sort(model_prediction$row_ids), test_rows),
+      identical(
+        base_prediction$truth[order(base_prediction$row_ids)],
+        model_prediction$truth[order(model_prediction$row_ids)]
+      )
+    )
+  }
+
+  # In grouped repeated CV, instance$row_id identifies participants, not EMA rows.
+  # Use the mean held-out/training participant ratio for the retained paired folds.
+  instance <- as.data.frame(resampling$instance)
+  stopifnot(all(c("row_id", "rep", "fold") %in% names(instance)))
+  n_units <- n_distinct(instance$row_id)
+  fold_sizes <- instance %>% count(rep, fold, name = "n_test")
+  fold_info <- tibble(
+    rep = resampling$repeats(baseline$iteration[valid]),
+    fold = resampling$folds(baseline$iteration[valid])
+  ) %>% left_join(fold_sizes, by = c("rep", "fold"))
+  stopifnot(all(is.finite(fold_info$n_test)),
+            all(fold_info$n_test > 0 & fold_info$n_test < n_units))
+  ratio <- mean(fold_info$n_test / (n_units - fold_info$n_test))
+  differences <- model_r2[valid] - baseline_r2[valid]
+  se_corrected <- sqrt(var(differences) * (1 / length(differences) + ratio))
+
+  if (var(differences) > 0) {
+    test <- sign_test_folds(
+      x1 = baseline_r2[valid], x2 = model_r2[valid],
+      n = n_units, split = 1 / (1 + ratio)
+    )
+    ci95 <- mean(differences) + c(-1, 1) * qt(0.975, test$df) * se_corrected
+  } else {
+    test <- list(t = NA_real_, df = length(differences) - 1,
+                 p = if (mean(differences) == 0) 1 else NA_real_)
+    ci95 <- c(NA_real_, NA_real_)
+  }
+
+  tibble(
+    algo = "RF", metric = "R2", alternative = "greater",
+    n_folds = length(differences), n_folds_total = nrow(baseline),
+    n_resampling_units = n_units, test_train_ratio = ratio,
+    r2_baseline = mean(baseline_r2[valid]), r2_model = mean(model_r2[valid]),
+    r2_improvement = mean(differences), se_corrected = se_corrected,
+    t = test$t, df = test$df, p = test$p,
+    ci95_lower = ci95[1], ci95_upper = ci95[2],
+    zero_variance = var(differences) == 0
+  )
+}
+
+prediction_significance_tests <- results_long %>%
+  filter(outcome %in% test_outcomes, algo %in% c("FL", "RF")) %>%
+  group_by(score_source, task_id, outcome, context) %>%
+  group_modify(~ test_against_baseline(.x)) %>%
+  ungroup()
+
+stopifnot(nrow(prediction_significance_tests) == 10)
+
+# Ten comparisons: five outcomes, each in private and public contexts.
+# The confidence intervals above are two-sided, pointwise 95% intervals.
+prediction_significance_tests <- prediction_significance_tests %>%
+  mutate(p_Holm = p.adjust(p, method = "holm", n = 10))
+
+write.csv(
+  prediction_significance_tests,
+  "results/prediction_significance_tests.csv",
+  row.names = FALSE
+)
+prediction_significance_tests
+
 ############################
 #### 4) TABLE S2:
 #### FULL PERFORMANCE RESULTS OF PREDICTION MODELS
