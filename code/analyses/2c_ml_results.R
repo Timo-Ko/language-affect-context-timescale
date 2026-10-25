@@ -290,6 +290,8 @@ test_outcomes <- c(
 )
 
 test_against_baseline <- function(data) {
+  prediction_col <- if ("prediction" %in% names(data)) "prediction" else "prediction_test"
+  stopifnot(prediction_col %in% names(data))
   baseline <- data %>% filter(algo == "FL") %>% arrange(iteration)
   model <- data %>% filter(algo == "RF") %>% arrange(iteration)
   stopifnot(
@@ -312,8 +314,8 @@ test_against_baseline <- function(data) {
 
   # Confirm that paired scores cover the same complete held-out observations.
   for (i in which(valid)) {
-    base_prediction <- baseline$prediction_test[[i]]
-    model_prediction <- model$prediction_test[[i]]
+    base_prediction <- baseline[[prediction_col]][[i]]
+    model_prediction <- model[[prediction_col]][[i]]
     test_rows <- sort(resampling$test_set(baseline$iteration[i]))
     stopifnot(
       identical(sort(base_prediction$row_ids), test_rows),

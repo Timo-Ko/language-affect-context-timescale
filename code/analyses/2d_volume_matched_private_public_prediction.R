@@ -782,6 +782,8 @@ score_trait_context <- as.data.frame(bench_static$bmr$score(msr("regr.rsq"))) %>
 
 # One-sided corrected tests: original-private RF R2 exceeds public RF R2.
 test_private_public <- function(data) {
+  prediction_col <- if ("prediction" %in% names(data)) "prediction" else "prediction_test"
+  stopifnot(prediction_col %in% names(data))
   private <- data %>% filter(condition == "Original private") %>% arrange(iteration)
   public <- data %>% filter(condition == "Public") %>% arrange(iteration)
   cv <- private$resampling[[1]]
@@ -798,8 +800,8 @@ test_private_public <- function(data) {
   if (sum(valid) < 2) stop("Too few paired finite R2 scores for context comparison")
 
   for (i in which(valid)) {
-    private_prediction <- private$prediction_test[[i]]
-    public_prediction <- public$prediction_test[[i]]
+    private_prediction <- private[[prediction_col]][[i]]
+    public_prediction <- public[[prediction_col]][[i]]
     test_rows <- sort(cv$test_set(private$iteration[i]))
     stopifnot(
       identical(sort(private_prediction$row_ids), test_rows),
