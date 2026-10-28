@@ -27,7 +27,6 @@ invisible(lapply(packages, library, character.only = TRUE))
 
 source("code/analyses/helper/plot_theme.R")
 source("code/analyses/helper/msr_pearson.R")
-source("code/analyses/helper/sign_test_folds.R")
 source("code/data_processing/keyboard_features/extract_keyboard_features.R")
 
 set.seed(123, kind = "L'Ecuyer")
@@ -765,105 +764,6 @@ performance_by_iteration <- bind_rows(summary_all)
 word_count_diagnostics <- bind_rows(word_diag_all)
 feature_log <- bind_rows(task_feature_log)
 
-############################
-#### 6.5) SIGNIFICANCE TESTS:
-#### ORIGINAL PRIVATE VERSUS PUBLIC RF
-############################
-
-# Score the static benchmark directly to retain its original CV fold identifiers.
-# Both models use the volume-matching subsample and their full available text.
-score_trait_context <- as.data.frame(bench_static$bmr$score(msr("regr.rsq"))) %>%
-  mutate(
-    learner = learner_label(learner_id),
-    condition = condition_label(task_id),
-    outcome = outcome_label(task_id)
-  ) %>%
-  filter(learner == "RF")
-
-# One-sided corrected tests: original-private RF R2 exceeds public RF R2.
-test_private_public <- function(data) {
-  prediction_col <- if ("prediction" %in% names(data)) "prediction" else "prediction_test"
-  stopifnot(prediction_col %in% names(data))
-  private <- data %>% filter(condition == "Original private") %>% arrange(iteration)
-  public <- data %>% filter(condition == "Public") %>% arrange(iteration)
-  cv <- private$resampling[[1]]
-  stopifnot(
-    nrow(private) == cv$iters,
-    !anyDuplicated(private$iteration), !anyDuplicated(public$iteration),
-    identical(private$iteration, public$iteration),
-    all(vapply(c(private$resampling, public$resampling), function(x) {
-      identical(x$hash, cv$hash)
-    }, logical(1)))
-  )
-
-  valid <- is.finite(private$regr.rsq) & is.finite(public$regr.rsq)
-  if (sum(valid) < 2) stop("Too few paired finite R2 scores for context comparison")
-
-  for (i in which(valid)) {
-    private_prediction <- private[[prediction_col]][[i]]
-    public_prediction <- public[[prediction_col]][[i]]
-    test_rows <- sort(cv$test_set(private$iteration[i]))
-    stopifnot(
-      identical(sort(private_prediction$row_ids), test_rows),
-      identical(sort(public_prediction$row_ids), test_rows),
-      identical(
-        private_prediction$truth[order(private_prediction$row_ids)],
-        public_prediction$truth[order(public_prediction$row_ids)]
-      )
-    )
-  }
-
-  # There is one row per participant, so these are participant split sizes.
-  iterations <- private$iteration[valid]
-  ratio <- mean(vapply(iterations, function(i) {
-    length(cv$test_set(i)) / length(cv$train_set(i))
-  }, numeric(1)))
-  differences <- private$regr.rsq[valid] - public$regr.rsq[valid]
-  se_corrected <- sqrt(var(differences) * (1 / length(differences) + ratio))
-
-  if (var(differences) > 0) {
-    test <- sign_test_folds(
-      x1 = public$regr.rsq[valid], x2 = private$regr.rsq[valid],
-      n = length(eligible_ids), split = 1 / (1 + ratio)
-    )
-    ci95 <- mean(differences) + c(-1, 1) * qt(0.975, test$df) * se_corrected
-  } else {
-    test <- list(t = NA_real_, df = length(differences) - 1,
-                 p = if (mean(differences) == 0) 1 else NA_real_)
-    ci95 <- c(NA_real_, NA_real_)
-  }
-
-  tibble(
-    algo = "RF", metric = "R2", alternative = "greater",
-    comparison = "Original private > Public", sample = "Volume-matching subsample",
-    n_participants = length(eligible_ids),
-    n_folds = length(differences), n_folds_total = nrow(private),
-    test_train_ratio = ratio,
-    r2_private = mean(private$regr.rsq[valid]),
-    r2_public = mean(public$regr.rsq[valid]),
-    r2_difference = mean(differences), se_corrected = se_corrected,
-    t = test$t, df = test$df, p = test$p,
-    ci95_lower = ci95[1], ci95_upper = ci95[2],
-    zero_variance = var(differences) == 0
-  )
-}
-
-# Holm adjustment across PA and NA; CIs are two-sided, pointwise 95% intervals.
-trait_context_tests <- score_trait_context %>%
-  group_by(outcome) %>%
-  group_modify(~ test_private_public(.x)) %>%
-  ungroup() %>%
-  mutate(p_Holm = p.adjust(p, method = "holm", n = 2))
-
-stopifnot(nrow(trait_context_tests) == 2)
-
-write.csv(
-  trait_context_tests,
-  "results/trait_private_public_prediction_tests.csv",
-  row.names = FALSE
-)
-trait_context_tests
-
 if (any(performance_by_iteration$pearson_coverage < 0.80, na.rm = TRUE)) {
   warning("Some condition x outcome x learner cells have Pearson coverage below 0.80.")
 }
@@ -1025,7 +925,6 @@ saveRDS(
     performance_by_iteration = performance_by_iteration,
     performance_summary = performance_summary,
     table_s3 = table_s3_volume_matched,
-    trait_context_tests = trait_context_tests,
     word_count_diagnostics = word_count_diagnostics,
     feature_log = feature_log,
     settings = list(

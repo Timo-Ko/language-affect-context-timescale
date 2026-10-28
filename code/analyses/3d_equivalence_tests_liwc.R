@@ -235,6 +235,9 @@ write.csv(
   row.names = FALSE
 )
 
+source("code/analyses/helper/table_s10_equivalence_power.R")
+table_s10_equivalence_power <- write_table_s10_equivalence_power()
+
 equivalence_results %>%
   select(timescale, feature_label, context, beta_within, ci90_lower, ci90_upper,
          p_TOST_Holm, equivalent_Holm) %>%

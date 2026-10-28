@@ -305,6 +305,9 @@ stopifnot(nrow(power_results) == 32)
 dir.create("results", recursive = TRUE, showWarnings = FALSE)
 write.csv(power_results, "results/liwc_within_person_detection_power.csv", row.names = FALSE)
 
+source("code/analyses/helper/table_s10_equivalence_power.R")
+table_s10_equivalence_power <- write_table_s10_equivalence_power()
+
 power_results %>%
   select(timescale, feature_label, context, true_beta, n_participants,
          power_unadjusted, power_Holm, n_failed) %>%

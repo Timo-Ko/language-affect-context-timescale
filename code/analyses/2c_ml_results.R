@@ -284,9 +284,10 @@ source("code/analyses/helper/sign_test_folds.R")
 
 # One-sided corrected tests: RF improves R2 over the featureless baseline.
 # Positive differences below favor RF; folds with undefined R2 are excluded in pairs.
+# Restrict inference to core outcomes; fluctuation remains a supplementary analysis.
 test_outcomes <- c(
   "Trait positive affect", "Trait negative affect", "Daily affective valence",
-  "Momentary affective valence", "Fluctuation in momentary affective valence"
+  "Momentary affective valence"
 )
 
 test_against_baseline <- function(data) {
@@ -373,12 +374,12 @@ prediction_significance_tests <- results_long %>%
   group_modify(~ test_against_baseline(.x)) %>%
   ungroup()
 
-stopifnot(nrow(prediction_significance_tests) == 10)
+stopifnot(nrow(prediction_significance_tests) == 8)
 
-# Ten comparisons: five outcomes, each in private and public contexts.
+# Eight comparisons: four core outcomes, each in private and public contexts.
 # The confidence intervals above are two-sided, pointwise 95% intervals.
 prediction_significance_tests <- prediction_significance_tests %>%
-  mutate(p_Holm = p.adjust(p, method = "holm", n = 10))
+  mutate(p_Holm = p.adjust(p, method = "holm", n = 8))
 
 write.csv(
   prediction_significance_tests,
