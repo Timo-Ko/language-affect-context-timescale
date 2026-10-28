@@ -209,7 +209,9 @@ if (file.exists("data/helper/DE-LIWC2015.rimealiases")) {
 ############################
 
 non_feature_cols_trait <- c(
-  "user_id", "scope", "age", "gender", "pa_panas", "na_panas"
+  "user_id", "scope", "age", "gender", "pa_panas", "na_panas",
+  "n_language_days", "liwc_match_rate", "wordsentiment_match_rate",
+  "senti_emoji_match_rate"
 )
 
 reference_feature_cols <- setdiff(
