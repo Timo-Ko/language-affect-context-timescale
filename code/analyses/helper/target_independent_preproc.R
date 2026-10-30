@@ -25,6 +25,7 @@ target_independent_preproc <- function(data, no_feature_columns){
   
   ## exclude features with >98% same non-na values (i.e., less than 2% different non-na values)
   columns_to_remove <- data %>%
+    select(-any_of(no_feature_columns)) %>%
     select(where(~ {
       non_na_vals <- .[!is.na(.)]
       most_frequent_proportion <- max(table(non_na_vals)) / length(non_na_vals)

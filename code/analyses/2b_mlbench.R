@@ -25,6 +25,7 @@ packages <- c(
 invisible(lapply(packages, library, character.only = TRUE))
 
 source("code/analyses/helper/plot_theme.R")
+source("code/analyses/helper/keyboard_feature_sets.R")
 
 set.seed(123, kind = "L'Ecuyer")
 
@@ -84,44 +85,10 @@ keyboard_data_ema_public_diff_ml <- keyboard_data_ema_ml %>%
 make_task_backend <- function(data, target, extra_drop = character(0)) {
   stopifnot(target %in% names(data))
   
-  non_feature_cols <- c(
-    "scope",
-    "date",
-    "user_day_id",
-    "age",
-    "gender",
-    "pa_panas",
-    "na_panas",
-    "valence_day_mean",
-    "arousal_day_mean",
-    "n_ema_day",
-    "es_count_day",
-    "n_ema",
-    "n_language_days",
-    "liwc_match_rate",
-    "wordsentiment_match_rate",
-    "senti_emoji_match_rate",
-    "valence",
-    "arousal",
-    "valence_avg",
-    "arousal_avg",
-    "notificationTimestamp",
-    "questionnaireStartedTimestamp",
-    "questionnaireEndedTimestamp",
-    "notificationTimestamp_corrected",
-    "questionnaireStartedTimestamp_corrected",
-    "questionnaireEndedTimestamp_corrected",
-    "es_questionnaire_id",
-    "weekday",
-    "nr",
-    "week",
-    "valence_diff",
-    "arousal_diff"
+  predictor_cols <- keyboard_feature_names(
+    data, extra_drop = c(extra_drop, target)
   )
-  
-  predictor_cols <- setdiff(names(data), union(non_feature_cols, extra_drop))
-  predictor_cols <- setdiff(predictor_cols, c("user_id", target))
-  
+
   backend <- data[, c("user_id", target, predictor_cols), drop = FALSE]
   backend
 }
@@ -151,146 +118,7 @@ make_regr_task <- function(data, id, target, extra_drop = character(0)) {
 
 
 get_feature_families <- function(data) {
-  
-  metadata_cols <- c(
-    "user_id",
-    "user_uuid",
-    "scope",
-    "context",
-    "date",
-    "user_day_id",
-    "occasion_id",
-    "n_language_days",
-    "age",
-    "gender",
-    "pa_panas",
-    "na_panas",
-    "valence_day_mean",
-    "arousal_day_mean",
-    "es_count_day",
-    "n_ema",
-    "valence",
-    "arousal",
-    "valence_avg",
-    "arousal_avg",
-    "valence_median",
-    "arousal_median",
-    "notificationTimestamp",
-    "questionnaireStartedTimestamp",
-    "questionnaireEndedTimestamp",
-    "notificationTimestamp_corrected",
-    "questionnaireStartedTimestamp_corrected",
-    "questionnaireEndedTimestamp_corrected",
-    "es_questionnaire_id",
-    "weekday",
-    "nr",
-    "week",
-    "valence_diff",
-    "arousal_diff"
-  )
-  
-  
-  measurement_coverage_features <- c(
-    "liwc_match_rate",
-    "wordsentiment_match_rate",
-    "senti_emoji_match_rate"
-  )
-  
-  
-  candidate_features <- setdiff(
-    names(data),
-    c(
-      metadata_cols,
-      measurement_coverage_features
-    )
-  )
-  
-  
-  word_features <- candidate_features[
-    str_detect(
-      candidate_features,
-      "^liwc_|^wordsentiment"
-    )
-  ]
-  
-  
-  symbol_features <- candidate_features[
-    str_detect(
-      candidate_features,
-      paste0(
-        "^emoji_|",
-        "^emoticon_|",
-        "^unique_emoji_count$|",
-        "^unique_emoticon_count$"
-      )
-    )
-  ]
-  
-  
-  typing_features <- setdiff(
-    candidate_features,
-    c(
-      word_features,
-      symbol_features
-    )
-  )
-  
-  
-  stopifnot(
-    length(
-      intersect(
-        word_features,
-        symbol_features
-      )
-    ) == 0,
-    
-    length(
-      intersect(
-        word_features,
-        typing_features
-      )
-    ) == 0,
-    
-    length(
-      intersect(
-        symbol_features,
-        typing_features
-      )
-    ) == 0
-  )
-  
-  
-  stopifnot(
-    setequal(
-      candidate_features,
-      c(
-        word_features,
-        symbol_features,
-        typing_features
-      )
-    )
-  )
-  
-  
-  list(
-    word = sort(
-      unique(
-        word_features
-      )
-    ),
-    
-    symbol = sort(
-      unique(
-        symbol_features
-      )
-    ),
-    
-    typing = sort(
-      unique(
-        typing_features
-      )
-    )
-  )
+  keyboard_feature_families(data)
 }
 
 feature_families_trait  <- get_feature_families(keyboard_data_trait_ml)
