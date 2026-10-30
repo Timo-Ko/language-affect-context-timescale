@@ -6,6 +6,7 @@ lapply(packages, library, character.only = TRUE)
 
 # load function for target independet preprocessing
 source("code/analyses/helper/target_independent_preproc.R")
+source("code/analyses/helper/keyboard_feature_sets.R")
 
 ## load data 
 keyboard_data_trait <- readRDS("data/results/keyboard_data_trait_final.rds")
@@ -72,6 +73,12 @@ no_feature_columns_moment <- c(
   "session_duration"
 )
 
+# Protect metadata from transformations and feature filtering while retaining
+# the existing protection for raw keyboard counts and durations.
+no_feature_columns_trait <- union(no_feature_columns_trait, keyboard_metadata_columns)
+no_feature_columns_day <- union(no_feature_columns_day, keyboard_metadata_columns)
+no_feature_columns_moment <- union(no_feature_columns_moment, keyboard_metadata_columns)
+
 # apply functions for target-independent preprocessing
 
 keyboard_data_trait_ml <- target_independent_preproc(
@@ -99,23 +106,14 @@ saveRDS(keyboard_data_moment_ema_ml, "data/results/keyboard_data_ema_ml.rds")
 #### FEATURE COUNTS FOR FINAL FEATURE SETS ####
 ############################
 
-count_feature_families <- function(data, no_feature_columns, dataset_name = "dataset") {
-  
-  feature_cols <- setdiff(names(data), no_feature_columns)
-  
-  dictionary_features <- feature_cols[
-    grepl("^liwc_|^wordsentiment", feature_cols)
-  ]
-  
-  emoji_features <- feature_cols[
-    grepl("^emoji_|^emoticon_|^senti_emoji", feature_cols)
-  ]
-  
-  typing_features <- setdiff(
-    feature_cols,
-    c(dictionary_features, emoji_features)
-  )
-  
+count_feature_families <- function(data, dataset_name = "dataset") {
+  # Count the same predictor set and families used to construct modeling tasks.
+  families <- keyboard_feature_families(data)
+  feature_cols <- sort(unlist(families, use.names = FALSE))
+  dictionary_features <- families$word
+  emoji_features <- families$symbol
+  typing_features <- families$typing
+
   out <- data.frame(
     dataset = dataset_name,
     total_features = length(feature_cols),
@@ -135,19 +133,16 @@ count_feature_families <- function(data, no_feature_columns, dataset_name = "dat
 
 trait_counts <- count_feature_families(
   data = keyboard_data_trait_ml,
-  no_feature_columns = no_feature_columns_trait,
   dataset_name = "Trait"
 )
 
 day_counts <- count_feature_families(
   data = keyboard_data_day_ml,
-  no_feature_columns = no_feature_columns_day,
   dataset_name = "Daily"
 )
 
 moment_counts <- count_feature_families(
   data = keyboard_data_moment_ema_ml,
-  no_feature_columns = no_feature_columns_moment,
   dataset_name = "Momentary"
 )
 

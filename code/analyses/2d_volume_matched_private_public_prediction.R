@@ -26,6 +26,7 @@ packages <- c(
 invisible(lapply(packages, library, character.only = TRUE))
 
 source("code/analyses/helper/plot_theme.R")
+source("code/analyses/helper/keyboard_feature_sets.R")
 source("code/analyses/helper/msr_pearson.R")
 source("code/data_processing/keyboard_features/extract_keyboard_features.R")
 
@@ -208,16 +209,7 @@ if (file.exists("data/helper/DE-LIWC2015.rimealiases")) {
 #### 4) HELPER FUNCTIONS ####
 ############################
 
-non_feature_cols_trait <- c(
-  "user_id", "scope", "age", "gender", "pa_panas", "na_panas",
-  "n_language_days", "liwc_match_rate", "wordsentiment_match_rate",
-  "senti_emoji_match_rate"
-)
-
-reference_feature_cols <- setdiff(
-  names(keyboard_data_trait_ml),
-  non_feature_cols_trait
-)
+reference_feature_cols <- keyboard_feature_names(keyboard_data_trait_ml)
 
 reference_feature_cols <- reference_feature_cols[
   vapply(keyboard_data_trait_ml[reference_feature_cols], is.numeric, logical(1))
