@@ -881,7 +881,7 @@ theory_context_results_all <- bind_rows(
     )
   ) %>%
   group_by(outcome, context) %>%
-  mutate(p_fdr = p.adjust(p.value, method = "BH")) %>%
+  mutate(p_holm = p.adjust(p.value, method = "holm")) %>%
   ungroup() %>%
   arrange(outcome_label, feature_label, context)
 
@@ -923,7 +923,7 @@ theory_momentary_interactions_between <- run_interaction_models(
   component = "between"
 )
 
-# BH correction is applied separately within each affect outcome.
+# Holm correction is applied separately within each affect outcome.
 theory_interaction_results_all <- bind_rows(
   theory_trait_interactions %>%
     mutate(
@@ -958,7 +958,7 @@ theory_interaction_results_all <- bind_rows(
     )
   ) %>%
   group_by(outcome) %>%
-  mutate(p_fdr = p.adjust(p.value, method = "BH")) %>%
+  mutate(p_holm = p.adjust(p.value, method = "holm")) %>%
   ungroup() %>%
   arrange(outcome_label, feature_label)
 
@@ -985,7 +985,7 @@ theory_between_context_results <- bind_rows(
     )
   ) %>%
   group_by(outcome, context) %>%
-  mutate(p_fdr = p.adjust(p.value, method = "BH")) %>%
+  mutate(p_holm = p.adjust(p.value, method = "holm")) %>%
   ungroup() %>%
   arrange(outcome_label, feature_label, context)
 
@@ -1008,7 +1008,7 @@ theory_between_interaction_results <- bind_rows(
     )
   ) %>%
   group_by(outcome) %>%
-  mutate(p_fdr = p.adjust(p.value, method = "BH")) %>%
+  mutate(p_holm = p.adjust(p.value, method = "holm")) %>%
   ungroup() %>%
   arrange(outcome_label, feature_label)
 
@@ -1042,7 +1042,7 @@ theory_trait_context_both <- run_context_models(
     outcome_label = nice_outcome_label(outcome)
   ) %>%
   group_by(outcome, context) %>%
-  mutate(p_fdr = p.adjust(p.value, method = "BH")) %>%
+  mutate(p_holm = p.adjust(p.value, method = "holm")) %>%
   ungroup() %>%
   arrange(outcome_label, feature_label, context)
 
@@ -1057,7 +1057,7 @@ theory_trait_interactions_both <- run_interaction_models(
     outcome_label = nice_outcome_label(outcome)
   ) %>%
   group_by(outcome) %>%
-  mutate(p_fdr = p.adjust(p.value, method = "BH")) %>%
+  mutate(p_holm = p.adjust(p.value, method = "holm")) %>%
   ungroup() %>%
   arrange(outcome_label, feature_label)
 
@@ -1218,7 +1218,7 @@ table_s6_interactions <- theory_interaction_results_all %>%
       digits = 2
     ),
     interaction_p = p.value,
-    interaction_p_fdr = p_fdr
+    interaction_p_holm = p_holm
   )
 
 table_s6 <- table_s6_context %>%
@@ -1255,8 +1255,8 @@ table_s6 <- table_s6_context %>%
     `Context interaction beta [95% CI]` =
       interaction_beta_ci,
     `Interaction p` = signif(interaction_p, 3),
-    `Interaction pFDR` = signif(
-      interaction_p_fdr,
+    `Interaction pHolm` = signif(
+      interaction_p_holm,
       3
     )
   )
@@ -1338,8 +1338,8 @@ table_s7_interactions <- theory_trait_interactions_both %>%
       p.value,
       3
     ),
-    pFDR = signif(
-      p_fdr,
+    pHolm = signif(
+      p_holm,
       3
     )
   )
@@ -1375,7 +1375,7 @@ table_s7 <- table_s7_context %>%
     `Public β [95% CI]` = `Public beta [95% CI]`,
     `Interaction β [95% CI]` = `Interaction beta [95% CI]`,
     p,
-    `pFDR` = pFDR
+    `pHolm` = pHolm
   )
 
 
@@ -1420,7 +1420,7 @@ all_liwc_context_results_all <- bind_rows(
     outcome_label = nice_outcome_label(outcome)
   ) %>%
   group_by(timescale, outcome, context) %>%
-  mutate(p_fdr = p.adjust(p.value, method = "BH")) %>%
+  mutate(p_holm = p.adjust(p.value, method = "holm")) %>%
   ungroup() %>%
   arrange(timescale, outcome_label, context_label, feature)
 
@@ -1457,7 +1457,7 @@ all_liwc_interaction_results_all <- bind_rows(
   left_join(all_liwc_feature_lookup, by = "feature") %>%
   mutate(outcome_label = nice_outcome_label(outcome)) %>%
   group_by(timescale, outcome) %>%
-  mutate(p_fdr = p.adjust(p.value, method = "BH")) %>%
+  mutate(p_holm = p.adjust(p.value, method = "holm")) %>%
   ungroup() %>%
   arrange(timescale, outcome_label, feature)
 
