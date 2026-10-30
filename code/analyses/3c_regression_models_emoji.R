@@ -1189,9 +1189,9 @@ symbol_trait_context_results <- symbol_trait_context %>%
     context
   ) %>%
   mutate(
-    p_fdr = p.adjust(
+    p_holm = p.adjust(
       p.value,
-      method = "BH"
+      method = "holm"
     )
   ) %>%
   ungroup() %>%
@@ -1278,9 +1278,9 @@ symbol_trait_interaction_results <- symbol_trait_interactions %>%
     outcome
   ) %>%
   mutate(
-    p_fdr = p.adjust(
+    p_holm = p.adjust(
       p.value,
-      method = "BH"
+      method = "holm"
     )
   ) %>%
   ungroup() %>%

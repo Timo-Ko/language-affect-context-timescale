@@ -1,6 +1,6 @@
-# Affective Signal in Everyday Digital Language Across Communication Contexts and Timescales 
+# Everyday smartphone language captures stable affective traits better than fluctuating states
 
-This repository contains the analysis code for the paper **“Affective Signal in Everyday Digital Language Across Communication Contexts and Timescales.”**
+This repository contains the analysis code for the paper **“Everyday smartphone language captures stable affective traits better than fluctuating states.”**
 
 The project examines whether naturalistic smartphone-typed language carries affective signal for trait, daily, and momentary affect, and whether this signal depends on communication context. Using privacy-preserving smartphone keyboard logs, ecological momentary assessments, and survey data, the analyses compare affective signal in private and public communication.
 
